@@ -4,17 +4,21 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 
 typedef struct {
-    size_t index;
-    const uint8_t *data;
+    size_t read_index;
+    uint8_t *data;
     size_t size;
+    size_t max_size;
 } streambuf_t;
 
 
-void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size);
-size_t streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize);
-
+void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size, size_t max_size);
+void streambuf_reset_input(streambuf_t *this);
+void streambuf_reset_output(streambuf_t *this);
+bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize);
+bool streambuf_write(streambuf_t *this, uint8_t *buf, size_t writesize);
 
 #endif

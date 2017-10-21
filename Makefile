@@ -1,18 +1,20 @@
-all: test libiasp/libiasp.so
+all: unittest libiasp/libiasp.so
 
-test: unittest
+test: clean unittest
 	./unittest
 
 unittest: libiasp/libiasp.a test.c
 	gcc -g -O0 -static -Wall -Werror -L libiasp test.c -liasp -lcmocka -o $@
 
 
-libiasp/libiasp.a libiasp/libiasp.so:
+libiasp/libiasp.a libiasp/libiasp.so: force
 	(cd libiasp && make $(notdir $@))
 
+force:
+	true
 
 clean:
 	(cd libiasp && make clean)
-	rm -f test
+	rm -f unittest
 
-.PHONY: clean all test
+.PHONY: clean all test true

@@ -1,40 +1,67 @@
 #include "streambuf.h"
 
-
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
 
 
-void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size)
+void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size, size_t max_size)
 {
     assert(this != NULL);
-    assert(size > 0);
+    assert(max_size > 0);
+    assert(max_size >= size);
 
     memset(this, 0, sizeof(streambuf_t));
 
     this->data = buf;
     this->size = size;
-    this->index = 0;
+    this->max_size = max_size;
+    this->read_index = 0;
 }
 
 
-size_t streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize)
+bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize)
 {
-    size_t to_read;
-
     assert(this != NULL);
     assert(buf != NULL);
 
-    if(readsize == 0) {
-        return 0;
+    if(readsize == 0 || this->size - this->read_index < readsize) {
+        return false;
     }
 
-    to_read = this->index + readsize < this->size ? readsize : this->size - this->index;
+    memcpy(buf, this->data + this->read_index, readsize);
+    this->read_index += readsize;
 
-    memcpy(buf, this->data + this->index, to_read);
-    this->index += to_read;
+    return true;
+}
 
-    return to_read;
+
+bool streambuf_write(streambuf_t *this, uint8_t *buf, size_t writesize)
+{
+    if(writesize == 0 || this->max_size - this->size < writesize) {
+        return false;
+    }
+
+    memcpy(this->data + this->size, buf, writesize);
+    this->size += writesize;
+
+    return true;
+}
+
+
+void streambuf_reset_input(streambuf_t *this)
+{
+    assert(this != NULL);
+
+    this->read_index = 0;
+}
+
+
+void streambuf_reset_output(streambuf_t *this)
+{
+    assert(this != NULL);
+
+    this->size = 0;
 }
