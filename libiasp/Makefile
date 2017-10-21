@@ -5,7 +5,7 @@ OBJS= $(patsubst %.c,%.o,$(SRCS))
 
 AR?= ar
 CC?= gcc
-CFLAGS+= -O0 -g -Wall -Werror -fpic -fprofile-arcs -ftest-coverage
+CFLAGS+= -O0 -g -Wall -Werror -fpic
 
 LIBNAME= libiasp
 
