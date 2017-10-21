@@ -4,7 +4,7 @@ test: clean unittest
 	./unittest
 
 unittest: libiasp/libiasp.a test.c
-	gcc -g -O0 -static -Wall -Werror -L libiasp test.c -liasp -lcmocka -o $@
+	gcc -g -O0 -static -Wall -Werror -L libiasp test.c -liasp -lcmocka -lgcov -o $@
 
 
 libiasp/libiasp.a libiasp/libiasp.so: force
