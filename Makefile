@@ -1,8 +1,10 @@
 all: test libiasp/libiasp.so
 
+test: unittest
+	./unittest
 
-test: libiasp/libiasp.a
-	gcc -Wall -Werror -L libiasp test.c -liasp -o $@
+unittest: libiasp/libiasp.a test.c
+	gcc -g -O0 -static -Wall -Werror -L libiasp test.c -liasp -lcmocka -o $@
 
 
 libiasp/libiasp.a libiasp/libiasp.so:
@@ -12,3 +14,5 @@ libiasp/libiasp.a libiasp/libiasp.so:
 clean:
 	(cd libiasp && make clean)
 	rm -f test
+
+.PHONY: clean all test

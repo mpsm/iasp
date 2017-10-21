@@ -31,9 +31,9 @@ size_t streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize)
         return 0;
     }
 
-    to_read = this->index + readsize < this->size ? readsize : this->size - this->index - readsize;
+    to_read = this->index + readsize < this->size ? readsize : this->size - this->index;
 
-    memcpy(buf, this->data, to_read);
+    memcpy(buf, this->data + this->index, to_read);
     this->index += to_read;
 
     return to_read;
