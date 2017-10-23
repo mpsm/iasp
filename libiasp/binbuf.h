@@ -10,6 +10,6 @@ typedef struct {
     size_t size;
 } binbuf_t;
 
-void binbuf_init(binbuf_t * const this, uint8_t * const buf, size_t size);
+void binbuf_init(binbuf_t * const this, uint8_t * buf, size_t size);
 
 #endif

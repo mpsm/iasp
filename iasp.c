@@ -47,7 +47,10 @@ int main(int argc, char *argv[])
     binbuf_init(&pkey_bb, pkey_buf, pkey_size);
 
     /* init crypto */
-    crypto_init(&pkey_bb);
+    if(!crypto_init(&pkey_bb)) {
+        printf("Crypto init error.\n");
+        exit(3);
+    }
 
 
     free(pkey_buf);

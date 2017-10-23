@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-void binbuf_init(binbuf_t * const this, uint8_t * const buf, size_t size)
+void binbuf_init(binbuf_t * const this, uint8_t *buf, size_t size)
 {
     assert(this != NULL);
     assert(buf != NULL);

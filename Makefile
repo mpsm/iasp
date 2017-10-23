@@ -2,13 +2,13 @@ CFLAGS= -g -O0 -Wall -Werror
 LDFLAGS= -L libiasp
 CC?= gcc
 
-all: unittest iasp libiasp/libiasp.so
+all: unittest iasp
 
 test: clean unittest
 	./unittest
 
-iasp: iasp.o libiasp/libiasp.so
-	$(CC) $(LDFLAGS) -static $< -liasp -o $@ 
+iasp: iasp.o
+	$(CC) $(LDFLAGS) -static $< -liasp -lcrypto -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
 	$(CC) $(LDFLAGS) -static $< -liasp -lcmocka -o $@

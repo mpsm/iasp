@@ -10,14 +10,11 @@ OBJS= $(patsubst %.c,%.o,$(SRCS))
 
 AR?= ar
 CC?= gcc
-CFLAGS+= -O0 -g -Wall -Werror -fpic
+CFLAGS+= -O0 -g -Wall -Werror
 
 LIBNAME= libiasp
 
-all: $(LIBNAME).a $(LIBNAME).so
-
-$(LIBNAME).so: $(OBJS)
-	$(CC) -shared -o $@ $^
+all: $(LIBNAME).a
 
 $(LIBNAME).a: $(OBJS)
 	$(AR) rcvs $@ $^
@@ -26,6 +23,6 @@ $(LIBNAME).a: $(OBJS)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 clean:
-	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so
+	rm -f $(OBJS) $(LIBNAME).a
 	
 .PHONY: clean all

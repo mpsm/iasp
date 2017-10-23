@@ -3,8 +3,10 @@
 
 #include "binbuf.h"
 
+#include <stdbool.h>
 
-void crypto_init(binbuf_t * const pkey);
+
+bool crypto_init(binbuf_t * const pkey);
 void crypto_free(void);
 
 
