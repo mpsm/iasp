@@ -7,7 +7,7 @@ all: unittest iasp
 test: clean unittest
 	./unittest
 
-iasp: iasp.o
+iasp: iasp.o libiasp/libiasp.a
 	$(CC) $(LDFLAGS) -static $< -liasp -lcrypto -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
