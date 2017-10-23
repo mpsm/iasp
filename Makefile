@@ -8,7 +8,7 @@ test: clean unittest
 	./unittest
 
 iasp: iasp.o libiasp/libiasp.so
-	$(CC) $(LDFLAGS) $< -liasp -o $@ 
+	$(CC) $(LDFLAGS) -static $< -liasp -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
 	$(CC) $(LDFLAGS) -static $< -liasp -lcmocka -o $@
@@ -20,7 +20,7 @@ libiasp/libiasp.a libiasp/libiasp.so: force
 	(cd libiasp && make $(notdir $@))
 
 force:
-	true
+	@true
 
 clean:
 	(cd libiasp && make clean)
