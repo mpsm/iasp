@@ -1,0 +1,6 @@
+libiasp/libiasp.so
+libiasp/libiasp.a
+.settings
+/unittest
+/iasp
+*.o
