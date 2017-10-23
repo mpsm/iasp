@@ -1,11 +1,20 @@
-all: unittest libiasp/libiasp.so
+CFLAGS= -g -O0 -Wall -Werror
+LDFLAGS= -L libiasp
+CC?= gcc
+
+all: unittest iasp libiasp/libiasp.so
 
 test: clean unittest
 	./unittest
 
-unittest: libiasp/libiasp.a test.c
-	gcc -g -O0 -static -Wall -Werror -L libiasp test.c -liasp -lcmocka -o $@
+iasp: iasp.o libiasp/libiasp.so
+	$(CC) $(LDFLAGS) $< -liasp -o $@ 
 
+unittest: test.o libiasp/libiasp.a 
+	$(CC) $(LDFLAGS) -static $< -liasp -lcmocka -o $@
+
+%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
 
 libiasp/libiasp.a libiasp/libiasp.so: force
 	(cd libiasp && make $(notdir $@))
@@ -15,6 +24,7 @@ force:
 
 clean:
 	(cd libiasp && make clean)
-	rm -f unittest
+	rm -f test.o iasp.o
+	rm -f unittest iasp
 
 .PHONY: clean all test true

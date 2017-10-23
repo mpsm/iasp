@@ -1,4 +1,4 @@
-SRCS= iasp_field.c \
+SRCS= field.c \
 	streambuf.c
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))

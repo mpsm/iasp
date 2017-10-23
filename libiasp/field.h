@@ -50,9 +50,9 @@ typedef struct {
             iasp_field_nonce_t nonce;
             iasp_field_spi_t initiator_spi;
             iasp_field_spi_t responder_spi;
-        };
+        } sid;
         uint64_t sidnum;
-        uint8_t sidbuf[];
+        uint8_t sidbuf[sizeof(iasp_field_nonce_t) + 2*sizeof(iasp_field_spi_t)];
     };
 } iasp_field_sid_t;
 
