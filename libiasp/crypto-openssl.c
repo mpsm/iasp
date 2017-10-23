@@ -1,6 +1,6 @@
 #include "crypto.h"
 #include "binbuf.h"
-#include "security.h"
+#include "types.h"
 
 #include <openssl/bn.h>
 #include <openssl/ec.h>
@@ -25,6 +25,10 @@ static const struct {
 /* private variables */
 static EC_KEY *my_key = NULL;
 static iasp_spn_code_t spn = IASP_SPN_MAX;
+static iasp_identity_t my_id;
+
+/* private methods */
+static iasp_identity_t crypto_eckey2id(EC_KEY *key);
 
 
 bool crypto_init(binbuf_t * const pkey)
@@ -62,7 +66,15 @@ bool crypto_init(binbuf_t * const pkey)
     printf("Public key (compressed):   %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_COMPRESSED, NULL));
     printf("Public key (uncompressed): %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL));
 
+    my_id = crypto_eckey2id(my_key);
+
     return true;
+}
+
+
+iasp_identity_t crypto_get_id()
+{
+    return my_id;
 }
 
 
@@ -71,4 +83,21 @@ void crypto_free()
     if(my_key != NULL) {
         EC_KEY_free(my_key);
     }
+}
+
+
+static iasp_identity_t crypto_eckey2id(EC_KEY *key)
+{
+    const EC_GROUP *group;
+    const EC_POINT *pubkey;
+    uint8_t *buf;
+    size_t buflen;
+
+    assert(key != NULL);
+
+    group = EC_KEY_get0_group(my_key);
+    pubkey = EC_KEY_get0_public_key(my_key);
+
+    EC_POINT_point2oct(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, buf, buflen, NULL);
+
 }

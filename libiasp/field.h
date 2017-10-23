@@ -32,7 +32,6 @@ typedef enum {
 
 typedef uint16_t iasp_field_spi_t;
 typedef uint32_t iasp_field_nonce_t;
-typedef uint64_t iasp_field_identity_t;
 typedef uint32_t iasp_field_token_t;
 
 
