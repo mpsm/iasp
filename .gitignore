@@ -4,3 +4,5 @@ libiasp/libiasp.a
 /unittest
 /iasp
 *.o
+*.pem
+*.der

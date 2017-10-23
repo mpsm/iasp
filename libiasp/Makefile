@@ -1,5 +1,10 @@
+IASP_CRYPTO?= openssl
+
 SRCS= field.c \
-	streambuf.c
+	streambuf.c \
+	binbuf.c \
+	crypto-$(IASP_CRYPTO).c
+
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))
 
