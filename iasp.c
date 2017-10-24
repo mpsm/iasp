@@ -19,6 +19,8 @@ int main(int argc, char *argv[])
     size_t pkey_size;
     uint8_t *pkey_buf;
     binbuf_t pkey_bb;
+    const iasp_identity_t *id;
+    int i;
 
     printf("IASP demo utility.\n");
 
@@ -51,6 +53,14 @@ int main(int argc, char *argv[])
         printf("Crypto init error.\n");
         exit(3);
     }
+
+    /* my id */
+    id = crypto_get_id();
+    printf("ID: ");
+    for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
+        printf("%x", id->data[i]);
+    }
+    printf("\n");
 
 
     free(pkey_buf);

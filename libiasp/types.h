@@ -1,10 +1,14 @@
 #ifndef __IASP_TYPES__H__
 #define __IASP_TYPES__H__
 
+
+#include "config.h"
 #include <stdint.h>
 
 
-typedef uint64_t iasp_identity_t;
+typedef struct {
+    uint8_t data[IASP_CONFIG_IDENTITY_SIZE];
+} iasp_identity_t;;
 
 typedef enum {
     IASP_SPN_128 = 1,
