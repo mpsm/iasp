@@ -7,7 +7,8 @@
 #include <stdbool.h>
 
 
-bool crypto_init(binbuf_t * const pkey);
+bool crypto_init(void);
+bool crypto_add_key(binbuf_t * const pkey);
 const iasp_identity_t* crypto_get_id(void);
 void crypto_free(void);
 

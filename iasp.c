@@ -25,8 +25,8 @@ int main(int argc, char *argv[])
     size_t pkey_size;
     uint8_t *pkey_buf;
     binbuf_t pkey_bb;
-    const iasp_identity_t *id;
-    int i;
+    //const iasp_identity_t *id;
+    //int i;
 
     printf("IASP demo utility.\n");
 
@@ -55,11 +55,12 @@ int main(int argc, char *argv[])
     binbuf_init(&pkey_bb, pkey_buf, pkey_size);
 
     /* init crypto */
-    if(!crypto_init(&pkey_bb)) {
+    crypto_init();
+    if(!crypto_add_key(&pkey_bb)) {
         printf("Crypto init error.\n");
         exit(3);
     }
-
+#if 0
     /* my id */
     id = crypto_get_id();
     printf("ID: ");
@@ -71,7 +72,7 @@ int main(int argc, char *argv[])
     /* test encode */
     streambuf_init(&sb, testbuf, 0, 128);
     iasp_encode_id(&sb, id);
-
+#endif
     free(pkey_buf);
 
 
