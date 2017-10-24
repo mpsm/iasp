@@ -38,7 +38,7 @@ bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize)
 }
 
 
-bool streambuf_write(streambuf_t *this, uint8_t *buf, size_t writesize)
+bool streambuf_write(streambuf_t *this, const uint8_t *buf, size_t writesize)
 {
     if(writesize == 0 || this->max_size - this->size < writesize) {
         return false;
@@ -65,3 +65,20 @@ void streambuf_reset_output(streambuf_t *this)
 
     this->size = 0;
 }
+
+
+bool streambuf_write_sb(streambuf_t *this, streambuf_t *that)
+{
+    assert(this != NULL);
+    assert(that != NULL);
+
+    if(that->size > this->max_size - this->size) {
+        return false;
+    }
+
+    memcpy(&this->data[this->size], that->data, that->size);
+    this->size += that->size;
+
+    return true;
+}
+

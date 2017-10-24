@@ -9,4 +9,8 @@
 #  define IASP_CONFIG_IDENTITY_SIZE (8)
 #endif
 
+#if !defined(IASP_CONFIG_VARINT_MAX_LENGTH)
+#  define IASP_CONFIG_VARINT_MAX_LENGTH (4)
+#endif
+
 #endif

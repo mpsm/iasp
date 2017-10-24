@@ -19,6 +19,7 @@ void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size, size_t max_siz
 void streambuf_reset_input(streambuf_t *this);
 void streambuf_reset_output(streambuf_t *this);
 bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize);
-bool streambuf_write(streambuf_t *this, uint8_t *buf, size_t writesize);
+bool streambuf_write(streambuf_t *this, const uint8_t *buf, size_t writesize);
+bool streambuf_write_sb(streambuf_t *this, streambuf_t *that);
 
 #endif

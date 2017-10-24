@@ -1,7 +1,8 @@
 IASP_CRYPTO?= openssl
 
-SRCS= field.c \
+SRCS= \
 	streambuf.c \
+	encode.c \
 	binbuf.c \
 	crypto-$(IASP_CRYPTO).c
 

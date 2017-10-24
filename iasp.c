@@ -10,6 +10,12 @@
 
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
+#include "libiasp/streambuf.h"
+#include "libiasp/encode.h"
+
+
+uint8_t testbuf[128];
+streambuf_t sb;
 
 
 int main(int argc, char *argv[])
@@ -62,6 +68,9 @@ int main(int argc, char *argv[])
     }
     printf("\n");
 
+    /* test encode */
+    streambuf_init(&sb, testbuf, 0, 128);
+    iasp_encode_id(&sb, id);
 
     free(pkey_buf);
 
