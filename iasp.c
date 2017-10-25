@@ -77,14 +77,9 @@ int main(int argc, char *argv[])
         spns = spns->next;
     }
 
-#if 0
     /* test encode */
     streambuf_init(&sb, testbuf, 0, 128);
-    iasp_encode_id(&sb, id);
-#endif
-
-
-
+    iasp_encode_ids(&sb, crypto_get_supported_spns());
 
     return 0;
 }

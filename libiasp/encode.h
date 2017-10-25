@@ -7,8 +7,13 @@
 
 #include <stdbool.h>
 
+
 bool iasp_encode_varint(streambuf_t *sb, unsigned int i);
+bool iasp_encode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned int count);
 bool iasp_encode_field_code(streambuf_t *sb, iasp_field_code_t field_code);
-bool iasp_encode_id(streambuf_t *sb, const iasp_identity_t *id);
+bool iasp_encode_id(streambuf_t *sb, iasp_spn_code_t spn, const iasp_identity_t *id);
+bool iasp_encode_ids(streambuf_t *sb, const iasp_spn_support_t *spns);
+bool iasp_encode_spn(streambuf_t *sb, iasp_spn_code_t spn);
+
 
 #endif
