@@ -6,6 +6,7 @@
 #include <openssl/ec.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #include <assert.h>
 #include <stdbool.h>
@@ -196,4 +197,10 @@ bool crypto_add_key(binbuf_t * const pkey)
     }
 
     return true;
+}
+
+
+bool crypto_gen_nonce(iasp_nonce_t *nonce)
+{
+    return RAND_bytes(nonce->data, IASP_CONFIG_NONCE_SIZE) == 1;
 }

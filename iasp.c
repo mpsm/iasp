@@ -71,15 +71,23 @@ int main(int argc, char *argv[])
     while(spns != NULL) {
         printf("SPN=%d, ID: ", spns->spn_code);
         for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
-            printf("%x", spns->id.data[i]);
+            printf("%02x", spns->id.data[i]);
         }
         printf("\n");
         spns = spns->next;
     }
 
     /* test encode */
-    streambuf_init(&sb, testbuf, 0, 128);
-    iasp_encode_ids(&sb, crypto_get_supported_spns());
+    {
+        iasp_nonce_t nonce;
 
+        streambuf_init(&sb, testbuf, 0, 128);
+        iasp_encode_hmsg_init_hello(&sb, crypto_get_supported_spns());
+
+        crypto_gen_nonce(&nonce);
+        streambuf_reset(&sb);
+        iasp_encode_hmsg_resp_hello(&sb, crypto_get_supported_spns()->spn_code,
+                &crypto_get_supported_spns()->id, &nonce);
+    }
     return 0;
 }

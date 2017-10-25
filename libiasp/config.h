@@ -13,4 +13,8 @@
 #  define IASP_CONFIG_VARINT_MAX_LENGTH (4)
 #endif
 
+#if !defined(IASP_CONFIG_NONCE_SIZE)
+#  define IASP_CONFIG_NONCE_SIZE (4)
+#endif
+
 #endif

@@ -10,7 +10,6 @@ typedef struct {
     uint8_t data[IASP_CONFIG_IDENTITY_SIZE];
 } iasp_identity_t;;
 
-
 typedef enum {
     IASP_SPN_128 = 1,
     IASP_SPN_256 = 2,
@@ -18,7 +17,6 @@ typedef enum {
     /* sentinel */
     IASP_SPN_MAX,
 } iasp_spn_code_t;
-
 
 typedef struct _iasp_spn_support {
     iasp_spn_code_t spn_code;
@@ -28,5 +26,8 @@ typedef struct _iasp_spn_support {
     struct _iasp_spn_support *next;
 } iasp_spn_support_t;
 
+typedef struct {
+    uint8_t data[IASP_CONFIG_NONCE_SIZE];
+} iasp_nonce_t;;
 
 #endif

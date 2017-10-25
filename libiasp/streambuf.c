@@ -64,6 +64,7 @@ void streambuf_reset_output(streambuf_t *this)
     assert(this != NULL);
 
     this->size = 0;
+    memset(this->data, 0, this->max_size);
 }
 
 
@@ -82,3 +83,11 @@ bool streambuf_write_sb(streambuf_t *this, streambuf_t *that)
     return true;
 }
 
+
+void streambuf_reset(streambuf_t *this)
+{
+    assert(this != NULL);
+
+    streambuf_reset_input(this);
+    streambuf_reset_output(this);
+}

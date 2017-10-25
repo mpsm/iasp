@@ -31,7 +31,6 @@ typedef enum {
 
 
 typedef uint16_t iasp_field_spi_t;
-typedef uint32_t iasp_field_nonce_t;
 typedef uint32_t iasp_field_token_t;
 
 
@@ -42,7 +41,7 @@ typedef enum {
     /* TODO: define operation status */
 } iasp_field_opstatus_t;
 
-
+#if 0
 typedef struct {
     union {
         struct {
@@ -54,7 +53,7 @@ typedef struct {
         uint8_t sidbuf[sizeof(iasp_field_nonce_t) + 2*sizeof(iasp_field_spi_t)];
     };
 } iasp_field_sid_t;
-
+#endif
 
 typedef struct {
     uint8_t ipdata[16];

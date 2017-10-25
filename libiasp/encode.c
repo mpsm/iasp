@@ -64,6 +64,14 @@ bool iasp_encode_id(streambuf_t *sb, iasp_spn_code_t spn, const iasp_identity_t 
 }
 
 
+bool iasp_encode_nonce(streambuf_t *sb, const iasp_nonce_t *nonce)
+{
+
+    return iasp_encode_field_code(sb, IASP_FIELD_NONCE) &&
+            streambuf_write(sb, nonce->data, sizeof(nonce));
+}
+
+
 bool iasp_encode_ids(streambuf_t *sb, const iasp_spn_support_t *spns)
 {
     /* go through list just to count elements rather than allocate buffer
@@ -80,9 +88,21 @@ bool iasp_encode_ids(streambuf_t *sb, const iasp_spn_support_t *spns)
         el = el->next;
     }
 
-    /* encode header */
-    if(iasp_encode_setof(sb, IASP_FIELD_ID, count) == false) {
+    /* do not encode empty list */
+    if(count == 0) {
         return false;
+    }
+
+    /* encode header */
+    if(count > 1) {
+        if(iasp_encode_setof(sb, IASP_FIELD_ID, count) == false) {
+            return false;
+        }
+    }
+    else /* field == 1 */ {
+        if(iasp_encode_field_code(sb, IASP_FIELD_ID) == false) {
+            return false;
+        }
     }
 
     /* encode elements */
@@ -98,4 +118,20 @@ bool iasp_encode_ids(streambuf_t *sb, const iasp_spn_support_t *spns)
     }
 
     return true;
+}
+
+
+bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_spn_support_t *spns)
+{
+    return iasp_encode_varint(sb, IASP_HMSG_INIT_HELLO) &&
+            iasp_encode_ids(sb, spns);
+}
+
+
+bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, iasp_spn_code_t spn, const iasp_identity_t *id,
+        const iasp_nonce_t *nonce)
+{
+    return iasp_encode_varint(sb, IASP_HMSG_RESP_HELLO) &&
+                iasp_encode_id(sb, spn, id) &&
+                iasp_encode_nonce(sb, nonce);
 }

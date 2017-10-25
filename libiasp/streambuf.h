@@ -16,6 +16,7 @@ typedef struct {
 
 
 void streambuf_init(streambuf_t *this, uint8_t *buf, size_t size, size_t max_size);
+void streambuf_reset(streambuf_t *this);
 void streambuf_reset_input(streambuf_t *this);
 void streambuf_reset_output(streambuf_t *this);
 bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize);
