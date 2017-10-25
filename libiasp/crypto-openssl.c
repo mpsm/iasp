@@ -27,17 +27,9 @@ static const crypto_context_t spn_map[] = {
         {IASP_SPN_MAX, 0, 0},
 };
 
-/* typedefs */
-typedef struct _crypto_support {
-    iasp_spn_code_t spn_code;
-    EC_KEY *my_key;
-    iasp_identity_t my_id;
-    struct _crypto_support *next;
-} crypto_support_t;
-
 
 /* private variables */
-crypto_support_t *spn = NULL;
+iasp_spn_support_t *spn = NULL;
 
 
 /* private methods */
@@ -55,14 +47,9 @@ bool crypto_init()
 }
 
 
-const iasp_identity_t* crypto_get_id()
+const iasp_spn_support_t* crypto_get_supported_spns()
 {
-    /* TODO: implement */
-#if 0
-    return &my_id;
-#else
-    return NULL;
-#endif
+    return spn;
 }
 
 
@@ -70,8 +57,8 @@ void crypto_free()
 {
     /* TODO: implement */
 #if 0
-    if(my_key != NULL) {
-        EC_KEY_free(my_key);
+    if(aux_data != NULL) {
+        EC_KEY_free(aux_data);
     }
 #endif
 }
@@ -139,11 +126,11 @@ bool crypto_add_key(binbuf_t * const pkey)
 {
     const EC_GROUP *group;
     const EC_POINT *pubkey;
-    EC_KEY *key;
+    EC_KEY *key = NULL;
     int group_nid;
     int i;
-    crypto_support_t *cs = spn;
-    crypto_support_t *new_cs;
+    iasp_spn_support_t *cs = spn;
+    iasp_spn_support_t *new_cs;
     iasp_spn_code_t new_spn;
 
     assert(pkey != NULL);
@@ -182,6 +169,8 @@ bool crypto_add_key(binbuf_t * const pkey)
             printf("There is another key for this profile.\n");
             return false;
         }
+
+        cs = cs->next;
     }
 
     /* print new key */
@@ -190,14 +179,16 @@ bool crypto_add_key(binbuf_t * const pkey)
     printf("Public key (uncompressed): %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL));
 
     /* allocate new crypto support structure */
-    new_cs = malloc(sizeof(crypto_support_t));
-    new_cs->my_key = key;
+    new_cs = malloc(sizeof(iasp_spn_support_t));
+    new_cs->aux_data = key;
     new_cs->spn_code = new_spn;
-    crypto_eckey2id(new_spn, new_cs->my_key, &new_cs->my_id);
+
+    crypto_eckey2id(new_spn, new_cs->aux_data, &new_cs->id);
 
     /* add crypto support to the list */
     if(spn == NULL) {
         spn = new_cs;
+        spn->next = NULL;
     }
     else {
         new_cs->next = spn;

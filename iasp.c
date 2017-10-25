@@ -25,8 +25,8 @@ int main(int argc, char *argv[])
     size_t pkey_size;
     uint8_t *pkey_buf;
     binbuf_t pkey_bb;
-    //const iasp_identity_t *id;
-    //int i;
+    const iasp_spn_support_t* spns;
+    unsigned int i;
 
     printf("IASP demo utility.\n");
 
@@ -35,45 +35,55 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    /* read key file */
-    fpkey = open(argv[1], O_RDONLY);
-    if(fpkey < 0) {
-        perror("pkey open");
-        exit(2);
-    }
-    if(stat(argv[1], &pkey_stat) < 0) {
-        perror("pkey stat");
-        exit(2);
-    }
-    pkey_size = pkey_stat.st_size;
-    pkey_buf = malloc(pkey_size);
-    if(read(fpkey, pkey_buf, pkey_size) != pkey_size) {
-        fprintf(stderr, "Error reading pkey file.\n");
-        exit(2);
-    }
-    close(fpkey);
-    binbuf_init(&pkey_bb, pkey_buf, pkey_size);
-
     /* init crypto */
     crypto_init();
-    if(!crypto_add_key(&pkey_bb)) {
-        printf("Crypto init error.\n");
-        exit(3);
-    }
-#if 0
-    /* my id */
-    id = crypto_get_id();
-    printf("ID: ");
-    for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
-        printf("%x", id->data[i]);
-    }
-    printf("\n");
 
+    /* read key files */
+    for(i = 1; i < argc; ++i) {
+        fpkey = open(argv[i], O_RDONLY);
+        if(fpkey < 0) {
+            perror("pkey open");
+            exit(2);
+        }
+        if(stat(argv[i], &pkey_stat) < 0) {
+            perror("pkey stat");
+            exit(2);
+        }
+        pkey_size = pkey_stat.st_size;
+        pkey_buf = malloc(pkey_size);
+        if(read(fpkey, pkey_buf, pkey_size) != pkey_size) {
+            fprintf(stderr, "Error reading pkey file.\n");
+            exit(2);
+        }
+        close(fpkey);
+        binbuf_init(&pkey_bb, pkey_buf, pkey_size);
+
+        if(!crypto_add_key(&pkey_bb)) {
+            printf("Crypto add key error: %s\n", argv[i]);
+            exit(3);
+        }
+
+        free(pkey_buf);
+    }
+
+    printf("Supported profiles:\n");
+    spns = crypto_get_supported_spns();
+    while(spns != NULL) {
+        printf("SPN=%d, ID: ", spns->spn_code);
+        for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
+            printf("%x", spns->id.data[i]);
+        }
+        printf("\n");
+        spns = spns->next;
+    }
+
+#if 0
     /* test encode */
     streambuf_init(&sb, testbuf, 0, 128);
     iasp_encode_id(&sb, id);
 #endif
-    free(pkey_buf);
+
+
 
 
     return 0;

@@ -9,7 +9,7 @@
 
 bool crypto_init(void);
 bool crypto_add_key(binbuf_t * const pkey);
-const iasp_identity_t* crypto_get_id(void);
+const iasp_spn_support_t* crypto_get_supported_spns(void);
 void crypto_free(void);
 
 
