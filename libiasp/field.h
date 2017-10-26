@@ -55,10 +55,6 @@ typedef struct {
 } iasp_field_sid_t;
 #endif
 
-typedef struct {
-    uint8_t ipdata[16];
-} iasp_field_ip_t;
-
 
 typedef struct {
     uint8_t *keydata;

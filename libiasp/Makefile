@@ -1,10 +1,12 @@
 IASP_CRYPTO?= openssl
+IASP_NETWORK?= posix
 
 SRCS= \
 	streambuf.c \
 	encode.c \
 	binbuf.c \
-	crypto-$(IASP_CRYPTO).c
+	crypto-$(IASP_CRYPTO).c \
+	network-$(IASP_NETWORK).c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))

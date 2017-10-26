@@ -30,4 +30,8 @@ typedef struct {
     uint8_t data[IASP_CONFIG_NONCE_SIZE];
 } iasp_nonce_t;;
 
+typedef struct {
+    uint8_t ipdata[16];
+} iasp_ip_t;
+
 #endif
