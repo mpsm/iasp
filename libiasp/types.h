@@ -28,7 +28,7 @@ typedef struct _iasp_spn_support {
 
 typedef struct {
     uint8_t data[IASP_CONFIG_NONCE_SIZE];
-} iasp_nonce_t;;
+} iasp_nonce_t;
 
 typedef struct {
     uint8_t ipdata[16];

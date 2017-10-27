@@ -15,6 +15,8 @@ typedef struct {
 } iasp_peer_t;
 
 
+bool iasp_network_peer_init(iasp_peer_t * const peer, iasp_ip_t * const ip, const uint16_t port);
+bool iasp_network_peer_destroy(iasp_peer_t * const peer);
 bool iasp_network_send(const iasp_peer_t * const peer, const binbuf_t * const msg);
 bool iasp_network_receive(iasp_peer_t * const peer, binbuf_t * const msg);
 
