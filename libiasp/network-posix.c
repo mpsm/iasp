@@ -96,8 +96,13 @@ bool iasp_network_release_address(iasp_address_t * const address)
 
     assert(address != NULL);
 
-    /* close socket */
+    /* get aux data */
     aux = AUX(address);
+    if(aux == NULL) {
+        return false;
+    }
+
+    /* close socket */
     if(close(aux->s) == -1) {
         return false;
     }

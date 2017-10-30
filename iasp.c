@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "libiasp/iasp.h"
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
 #include "libiasp/streambuf.h"
@@ -20,11 +21,25 @@
 #include "libiasp/types.h"
 
 
+/* error codes */
+enum {
+    ERROR_OK = 0,
+    ERROR_ARGS = 1,
+    ERROR_CONFIG = 2,
+    ERROR_RUNTIME = 3,
+};
+
+/* mode context */
+typedef struct {
+    iasp_address_t *address;
+    config_t * cfg;
+} modecontext_t;
+
 /* mode handling */
-typedef int (*modehandler_t)(const config_t *);
-static int main_cd(const config_t *cfg);
-static int main_ffd(const config_t *cfg);
-static int main_tp(const config_t *cfg);
+typedef int (*modehandler_t)(const modecontext_t *);
+static int main_cd(const modecontext_t *cfg);
+static int main_ffd(const modecontext_t *cfg);
+static int main_tp(const modecontext_t *cfg);
 static const struct {
     const char *name;
     modehandler_t handler;
@@ -40,14 +55,16 @@ static bool add_key(const char *filename);
 
 int main(int argc, char *argv[])
 {
-    int ret = 3;
+    int ret = ERROR_RUNTIME;
     config_t cfg;
+    iasp_address_t myaddr = {NULL};
     modehandler_t modehandler = NULL;
+    modecontext_t ctx;
 
     /* check input arguments */
     if(argc != 2) {
         fprintf(stderr, "Usage: %s config_file\n", argv[0]);
-        exit(1);
+        exit(ERROR_ARGS);
     }
 
     /* init config */
@@ -58,7 +75,7 @@ int main(int argc, char *argv[])
                 config_error_line(&cfg),
                 config_error_text(&cfg));
         config_destroy(&cfg);
-        exit(2);
+        exit(ERROR_CONFIG);
     }
 
     /* get mode */
@@ -66,6 +83,7 @@ int main(int argc, char *argv[])
         const char *mode;
         unsigned int m = 0;
 
+        /* read mode from config */
         if(config_lookup_string(&cfg, "mode", &mode) == CONFIG_FALSE) {
             fprintf(stderr, "Unspecified mode value.\n");
             goto exit;
@@ -94,6 +112,7 @@ int main(int argc, char *argv[])
 
         crypto_init();
 
+        /* read keys locations from config */
         if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
             fprintf(stderr, "Crypto: specify at least one key in the configuration.\n");
             goto exit;
@@ -116,6 +135,25 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* init network */
+    {
+        const char *ip;
+
+        /* read address from config */
+        if(config_lookup_string(&cfg, "address", &ip) == CONFIG_FALSE) {
+            fprintf(stderr, "Network: specify network adddress.\n");
+            goto exit;
+        }
+
+        /* set network address */
+        printf("Network: binding address %s:%d\n", ip, IASP_DEFAULT_PORT);
+        if(!iasp_network_add_address_str(&myaddr, ip, IASP_DEFAULT_PORT)) {
+            fprintf(stderr, "Cannot assign specified address: %s\n", ip);
+            perror("network");
+            goto exit;
+        }
+    }
+
     /* print supported profiles */
     {
         const iasp_spn_support_t* spns;
@@ -135,9 +173,14 @@ int main(int argc, char *argv[])
     }
 
     /* run mode handler */
-    ret = modehandler(&cfg);
+    ctx.cfg = &cfg;
+    ctx.address = &myaddr;
+    ret = modehandler(&ctx);
+
 exit:
     config_destroy(&cfg);
+    iasp_network_release_address(&myaddr);
+
     return ret;
 }
 
@@ -179,22 +222,22 @@ static bool add_key(const char *filename)
 }
 
 
-static int main_cd(const config_t *cfg)
+static int main_cd(const modecontext_t *cfg)
 {
     printf("Executing CD mode.\n");
-    return 0;
+    return ERROR_OK;
 }
 
 
-static int main_ffd(const config_t *cfg)
+static int main_ffd(const modecontext_t *cfg)
 {
     printf("Executing FFD mode.\n");
-    return 0;
+    return ERROR_OK;
 }
 
 
-static int main_tp(const config_t *cfg)
+static int main_tp(const modecontext_t *cfg)
 {
     printf("Executing TP mode.\n");
-    return 0;
+    return ERROR_OK;
 }
