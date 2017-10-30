@@ -23,6 +23,8 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
 void iasp_network_address2ip(const iasp_address_t * const address, iasp_ip_t * const ip);
 void iasp_network_address_init(iasp_address_t * const address, iasp_ip_t * const ip, const uint16_t port);
 void iasp_network_address_destroy(iasp_address_t * const address);
+const iasp_ip_t *iasp_network_address_ip(const iasp_address_t * const address);
+uint16_t iasp_network_address_port(const iasp_address_t * const address);
 
 /* ip related methods */
 bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str);

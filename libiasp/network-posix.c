@@ -158,3 +158,27 @@ bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str)
 
     return inet_pton(AF_INET6, str, ip->ipdata) != -1;
 }
+
+
+const iasp_ip_t *iasp_network_address_ip(const iasp_address_t * const address)
+{
+    struct posix_net_aux *aux;
+
+    assert(address != NULL);
+
+    aux = AUX(address);
+
+    return (const iasp_ip_t *)&aux->sin.sin6_addr.__in6_u.__u6_addr8;
+}
+
+
+uint16_t iasp_network_address_port(const iasp_address_t * const address)
+{
+    struct posix_net_aux *aux;
+
+    assert(address != NULL);
+
+    aux = AUX(address);
+
+    return (uint16_t)aux->sin.sin6_port;
+}
