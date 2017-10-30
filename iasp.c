@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
@@ -19,23 +20,29 @@
 #include "libiasp/types.h"
 
 
+/* mode handling */
+typedef int (*modehandler_t)(const config_t *);
+static int main_cd(const config_t *cfg);
+static int main_ffd(const config_t *cfg);
+static int main_tp(const config_t *cfg);
+static const struct {
+    const char *name;
+    modehandler_t handler;
+} modes[] = {
+        {"CD", main_cd},
+        {"FFD", main_ffd},
+        {"TP", main_tp},
+        {NULL, NULL},
+};
+
 /* local methods */
 static bool add_key(const char *filename);
 
-/* local variables */
-uint8_t testbuf[128];
-streambuf_t sb;
-
-
 int main(int argc, char *argv[])
 {
-    const iasp_spn_support_t* spns;
-    unsigned int i;
     int ret = 3;
-
-    /* config variables */
     config_t cfg;
-    const config_setting_t *keys;
+    modehandler_t modehandler = NULL;
 
     /* check input arguments */
     if(argc != 2) {
@@ -54,67 +61,81 @@ int main(int argc, char *argv[])
         exit(2);
     }
 
-#if 0
-    /* init network address */
-    iasp_network_ip_from_str(&ip, argv[1]);
-    iasp_network_add_address(&myaddr, &ip, 1234);
-    iasp_network_ip_from_str(&ip, argv[2]);
-    iasp_network_address_init(&peeraddr, &ip, 1234);
-#endif
+    /* get mode */
+    {
+        const char *mode;
+        unsigned int m = 0;
 
-    /* init crypto */
-    crypto_init();
-    if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
-        fprintf(stderr, "Crypto: specify at least one key in the configuration.\n");
-        goto exit;
-    }
-
-    /* read keys */
-    for(i = 0; i < config_setting_length(keys); ++i) {
-        const char *keyfile = config_setting_get_string_elem(keys, i);
-
-        if(keyfile == NULL) {
-            continue;
+        if(config_lookup_string(&cfg, "mode", &mode) == CONFIG_FALSE) {
+            fprintf(stderr, "Unspecified mode value.\n");
+            goto exit;
         }
 
-        /* read key from specified file */
-        printf("Reding key file: %s\n", keyfile);
-        if(!add_key(keyfile)) {
-            fprintf(stderr, "Error reading key file: %s\n", keyfile);
+        /* find mode handler */
+        while(modes[m].name != NULL) {
+            if(strcmp(modes[m].name, mode) == 0) {
+                modehandler = modes[m].handler;
+                break;
+            }
+            m++;
+        }
+
+        /* check mode lookup result */
+        if(modehandler == NULL) {
+            fprintf(stderr, "Invalid mode: %s", mode);
             goto exit;
         }
     }
 
-    printf("Supported profiles:\n");
-
-    spns = crypto_get_supported_spns();
-    while(spns != NULL) {
-        printf("SPN=%d, ID: ", spns->spn_code);
-        for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
-            printf("%02x", spns->id.data[i]);
-        }
-        printf("\n");
-        spns = spns->next;
-    }
-
-#if 0
-    /* test encode */
+    /* init crypto and read keys*/
     {
-        iasp_nonce_t nonce;
+        unsigned int i;
+        const config_setting_t *keys;
 
-        streambuf_init(&sb, testbuf, 0, 128);
-        iasp_encode_hmsg_init_hello(&sb, crypto_get_supported_spns());
+        crypto_init();
 
-        crypto_gen_nonce(&nonce);
-        streambuf_reset(&sb);
-        iasp_encode_hmsg_resp_hello(&sb, crypto_get_supported_spns()->spn_code,
-                &crypto_get_supported_spns()->id, &nonce);
+        if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
+            fprintf(stderr, "Crypto: specify at least one key in the configuration.\n");
+            goto exit;
+        }
+
+        /* read keys */
+        for(i = 0; i < config_setting_length(keys); ++i) {
+            const char *keyfile = config_setting_get_string_elem(keys, i);
+
+            if(keyfile == NULL) {
+                continue;
+            }
+
+            /* read key from specified file */
+            printf("Reding key file: %s\n", keyfile);
+            if(!add_key(keyfile)) {
+                fprintf(stderr, "Error reading key file: %s\n", keyfile);
+                goto exit;
+            }
+        }
     }
 
-    iasp_network_release_address(&myaddr);
-#endif
+    /* print supported profiles */
+    {
+        const iasp_spn_support_t* spns;
+        unsigned int i;
 
-    ret = 0;
+        printf("Supported profiles:\n");
+
+        spns = crypto_get_supported_spns();
+        while(spns != NULL) {
+            printf("SPN=%d, ID: ", spns->spn_code);
+            for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
+                printf("%02x", spns->id.data[i]);
+            }
+            printf("\n");
+            spns = spns->next;
+        }
+    }
+
+    /* run mode handler */
+    ret = modehandler(&cfg);
 exit:
     config_destroy(&cfg);
     return ret;
@@ -155,4 +176,25 @@ static bool add_key(const char *filename)
     free(pkey_buf);
 
     return true;
+}
+
+
+static int main_cd(const config_t *cfg)
+{
+    printf("Executing CD mode.\n");
+    return 0;
+}
+
+
+static int main_ffd(const config_t *cfg)
+{
+    printf("Executing FFD mode.\n");
+    return 0;
+}
+
+
+static int main_tp(const config_t *cfg)
+{
+    printf("Executing TP mode.\n");
+    return 0;
 }
