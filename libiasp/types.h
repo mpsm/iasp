@@ -11,6 +11,7 @@ typedef struct {
 } iasp_identity_t;;
 
 typedef enum {
+    IASP_SPN_NONE = 0,
     IASP_SPN_128 = 1,
     IASP_SPN_256 = 2,
 
