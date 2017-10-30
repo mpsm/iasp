@@ -58,7 +58,7 @@ typedef union {
 } iasp_inner_hdr_t;
 
 
-void iasp_proto_put_inner_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
-void iasp_proto_put_outer_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
+void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
+void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
 
 #endif
