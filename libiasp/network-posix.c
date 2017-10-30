@@ -39,28 +39,31 @@ bool iasp_network_send(const iasp_address_t * const address, const iasp_address_
 }
 
 
+/* INFO: thread unsafe */
 bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg)
 {
-    struct posix_net_aux *my_aux, *peer_aux;
-    struct sockaddr_storage sas;
+    struct posix_net_aux *my_aux;
     ssize_t rcvd;
-    socklen_t saslen = sizeof(sas);
+    socklen_t saslen = sizeof(struct sockaddr_in6);
+    static struct posix_net_aux aux;
 
     assert(address != NULL);
     assert(peer != NULL);
 
+    /* init aux data */
     my_aux = AUX(address);
-    peer_aux = AUX(peer);
+    memset(&aux, 0, sizeof(struct posix_net_aux));
 
     /* read message */
-    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&sas, &saslen);
+    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&aux.sin, &saslen);
     if(rcvd == -1) {
         return false;
     }
     msg->size = (size_t)rcvd;
 
-    /* process peer address */
-    memset(peer_aux, 0, sizeof(*peer_aux));
+    /* set sender address */
+    assert(peer->aux == NULL); /* leak protection */
+    peer->aux = &aux;
 
     return true;
 }
@@ -211,4 +214,16 @@ bool iasp_network_address_init_str(iasp_address_t * const address, const char *i
 
     iasp_network_address_init(address, &localip, port);
     return true;
+}
+
+
+/* INFO: thread unsafe */
+#define IP_STR_BUFSIZE (4*8 + (8 - 1))
+const char *iasp_network_ip_to_str(const iasp_ip_t * const ip)
+{
+    static char buf[IP_STR_BUFSIZE];
+
+    memset(buf, 0, IP_STR_BUFSIZE);
+
+    return inet_ntop(AF_INET6, (struct in6_addr *)ip, buf, IP_STR_BUFSIZE);
 }

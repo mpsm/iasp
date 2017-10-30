@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define IASP_NET_STR_IP(x) (iasp_network_ip_to_str(iasp_network_address_ip(x)))
+
 
 typedef struct {
     void *aux;
@@ -30,5 +32,6 @@ uint16_t iasp_network_address_port(const iasp_address_t * const address);
 
 /* ip related methods */
 bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str);
+const char *iasp_network_ip_to_str(const iasp_ip_t * const ip);
 
 #endif

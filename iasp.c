@@ -226,14 +226,9 @@ static bool add_key(const char *filename)
 static int main_cd(const modecontext_t *ctx)
 {
     iasp_address_t tpaddr = {NULL};
-    //const char *hello = "hello";
-    //binbuf_t bb;
     int ret = ERROR_RUNTIME;
 
     printf("\nExecuting CD mode.\n\n");
-
-    //bb.buf = (uint8_t *)hello;
-    //bb.size = 5;
 
     /* get TP address from config */
     {
@@ -250,6 +245,19 @@ static int main_cd(const modecontext_t *ctx)
             ret = ERROR_CONFIG;
             goto exit;
         }
+
+        printf("CD: Trust Point address: %s\n", tpaddress_str);
+    }
+
+
+    {
+        const char *hello = "hello";
+        binbuf_t bb;
+
+        bb.buf = (uint8_t *)hello;
+        bb.size = 5;
+
+        iasp_network_send(ctx->address, &tpaddr, &bb);
     }
 
     ret = ERROR_OK;
@@ -271,7 +279,7 @@ static int main_ffd(const modecontext_t *ctx)
 #define TPBUFSIZE 128
 static int main_tp(const modecontext_t *ctx)
 {
-    iasp_address_t peer;
+    iasp_address_t peer = {NULL};
     static uint8_t buf[TPBUFSIZE];
     binbuf_t bb;
 
@@ -280,7 +288,10 @@ static int main_tp(const modecontext_t *ctx)
     bb.buf = buf;
     bb.size = TPBUFSIZE;
 
+    memset(buf, 0, TPBUFSIZE);
     iasp_network_receive(ctx->address, &peer, &bb);
+    printf("Received msg: %s (len: %d)\n", (char *)bb.buf, (int)bb.size);
+    printf("Sender address: %s\n",IASP_NET_STR_IP(&peer));
 
     return ERROR_OK;
 }
