@@ -20,6 +20,7 @@ typedef struct {
 
 
 void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, const iasp_address_t *peer_addr);
+void iasp_session_start(iasp_session_t * const this);
 
 
 #endif

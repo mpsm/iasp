@@ -19,7 +19,7 @@
 #include "libiasp/encode.h"
 #include "libiasp/network.h"
 #include "libiasp/types.h"
-
+#include "libiasp/session.h"
 
 /* error codes */
 enum {
@@ -249,15 +249,12 @@ static int main_cd(const modecontext_t *ctx)
         printf("CD: Trust Point address: %s\n", tpaddress_str);
     }
 
-
     {
-        const char *hello = "hello";
-        binbuf_t bb;
+        iasp_session_t s;
 
-        bb.buf = (uint8_t *)hello;
-        bb.size = 5;
+        iasp_session_init(&s, ctx->address, &tpaddr);
 
-        iasp_network_send(ctx->address, &tpaddr, &bb);
+        iasp_session_start(&s);
     }
 
     ret = ERROR_OK;
