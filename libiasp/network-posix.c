@@ -150,3 +150,11 @@ void iasp_network_address2ip(const iasp_address_t * const address, iasp_ip_t * c
     memcpy(ip->ipdata, aux->sin.sin6_addr.__in6_u.__u6_addr8, sizeof(iasp_ip_t));
 }
 
+
+bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str)
+{
+    assert(ip != NULL);
+    assert(str != NULL);
+
+    return inet_pton(AF_INET6, str, ip->ipdata) != -1;
+}

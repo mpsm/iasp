@@ -12,6 +12,8 @@
 #include "libiasp/crypto.h"
 #include "libiasp/streambuf.h"
 #include "libiasp/encode.h"
+#include "libiasp/network.h"
+#include "libiasp/types.h"
 
 
 uint8_t testbuf[128];
@@ -27,19 +29,40 @@ int main(int argc, char *argv[])
     binbuf_t pkey_bb;
     const iasp_spn_support_t* spns;
     unsigned int i;
+    iasp_ip_t ip;
+    iasp_address_t myaddr, peeraddr;
+    binbuf_t bb;
+    const char test[] = {"test"};
 
     printf("IASP demo utility.\n");
 
-    if(argc < 2) {
-        printf("Usage: %s pkey\n", argv[0]);
+    if(argc < 4) {
+        printf("Usage: %s addr peer pkey1 [pkey2]\n", argv[0]);
         exit(1);
     }
 
     /* init crypto */
     crypto_init();
 
+    /* init network address */
+    iasp_network_ip_from_str(&ip, argv[1]);
+    iasp_network_add_address(&myaddr, &ip, 1234);
+    iasp_network_ip_from_str(&ip, argv[2]);
+    iasp_network_address_init(&peeraddr, &ip, 1234);
+
+    /* test send */
+    bb.buf = (uint8_t *)test;
+    bb.size = 4;
+    if(!iasp_network_send(&myaddr, &peeraddr, &bb)) {
+        printf("send failed");
+    }
+    else {
+        printf("send ok");
+    }
+    printf("\n");
+
     /* read key files */
-    for(i = 1; i < argc; ++i) {
+    for(i = 3; i < argc; ++i) {
         fpkey = open(argv[i], O_RDONLY);
         if(fpkey < 0) {
             perror("pkey open");
@@ -89,5 +112,8 @@ int main(int argc, char *argv[])
         iasp_encode_hmsg_resp_hello(&sb, crypto_get_supported_spns()->spn_code,
                 &crypto_get_supported_spns()->id, &nonce);
     }
+
+    iasp_network_release_address(&myaddr);
+
     return 0;
 }
