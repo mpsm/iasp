@@ -1,5 +1,5 @@
 CFLAGS= -g -O0 -Wall -Werror
-LDFLAGS= -L libiasp
+LDFLAGS= -L libiasp -static-libgcc
 CC?= gcc
 
 all: unittest iasp
@@ -8,10 +8,10 @@ test: clean unittest
 	./unittest
 
 iasp: iasp.o libiasp/libiasp.a
-	$(CC) $(LDFLAGS) -static $< -liasp -lcrypto -lconfig -ldl -o $@ 
+	$(CC) $(LDFLAGS) $< -liasp -lcrypto -lconfig -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
-	$(CC) $(LDFLAGS) -static $< -liasp -lcmocka -o $@
+	$(CC) $(LDFLAGS) $< -liasp -lcmocka -o $@
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
