@@ -8,7 +8,7 @@ test: clean unittest
 	./unittest
 
 iasp: iasp.o libiasp/libiasp.a
-	$(CC) $(LDFLAGS) -static $< -liasp -lcrypto -ldl -o $@ 
+	$(CC) $(LDFLAGS) -static $< -liasp -lcrypto -lconfig -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
 	$(CC) $(LDFLAGS) -static $< -liasp -lcmocka -o $@

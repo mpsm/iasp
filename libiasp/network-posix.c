@@ -182,3 +182,15 @@ uint16_t iasp_network_address_port(const iasp_address_t * const address)
 
     return (uint16_t)aux->sin.sin6_port;
 }
+
+
+bool iasp_network_add_address_str(iasp_address_t * const address, const char *ip, const uint16_t port)
+{
+    iasp_ip_t localip;
+
+    if(!iasp_network_ip_from_str(&localip, ip)) {
+        return false;
+    }
+
+    return iasp_network_add_address(address, &localip, port);
+}

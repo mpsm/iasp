@@ -5,4 +5,3 @@ libiasp/libiasp.a
 /iasp
 *.o
 *.pem
-*.der
