@@ -6,7 +6,8 @@ SRCS= \
 	encode.c \
 	binbuf.c \
 	crypto-$(IASP_CRYPTO).c \
-	network-$(IASP_NETWORK).c
+	network-$(IASP_NETWORK).c \
+	proto.c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))
