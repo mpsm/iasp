@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
 {
     const iasp_spn_support_t* spns;
     unsigned int i;
+    int ret = 3;
 
     /* config variables */
     config_t cfg;
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
     crypto_init();
     if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
         fprintf(stderr, "Crypto: specify at least one key in the configuration.\n");
-        exit(3);
+        goto exit;
     }
 
     /* read keys */
@@ -80,7 +81,7 @@ int main(int argc, char *argv[])
         printf("Reding key file: %s\n", keyfile);
         if(!add_key(keyfile)) {
             fprintf(stderr, "Error reading key file: %s\n", keyfile);
-            exit(2);
+            goto exit;
         }
     }
 
@@ -113,7 +114,10 @@ int main(int argc, char *argv[])
     iasp_network_release_address(&myaddr);
 #endif
 
-    return 0;
+    ret = 0;
+exit:
+    config_destroy(&cfg);
+    return ret;
 }
 
 
