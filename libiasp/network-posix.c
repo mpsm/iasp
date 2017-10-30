@@ -199,3 +199,16 @@ bool iasp_network_add_address_str(iasp_address_t * const address, const char *ip
 
     return iasp_network_add_address(address, &localip, port);
 }
+
+
+bool iasp_network_address_init_str(iasp_address_t * const address, const char *ip, const uint16_t port)
+{
+    iasp_ip_t localip;
+
+    if(!iasp_network_ip_from_str(&localip, ip)) {
+        return false;
+    }
+
+    iasp_network_address_init(address, &localip, port);
+    return true;
+}

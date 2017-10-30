@@ -222,22 +222,65 @@ static bool add_key(const char *filename)
 }
 
 
-static int main_cd(const modecontext_t *cfg)
+#define CDBUFSIZE
+static int main_cd(const modecontext_t *ctx)
 {
-    printf("Executing CD mode.\n");
-    return ERROR_OK;
+    iasp_address_t tpaddr = {NULL};
+    //const char *hello = "hello";
+    //binbuf_t bb;
+    int ret = ERROR_RUNTIME;
+
+    printf("\nExecuting CD mode.\n\n");
+
+    //bb.buf = (uint8_t *)hello;
+    //bb.size = 5;
+
+    /* get TP address from config */
+    {
+        const char *tpaddress_str;
+
+        if(config_lookup_string(ctx->cfg, "cd.tpaddress", &tpaddress_str) == CONFIG_FALSE) {
+            fprintf(stderr, "CD: specify TP address in configuration");
+            ret = ERROR_CONFIG;
+            goto exit;
+        }
+
+        if(!iasp_network_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
+            fprintf(stderr, "CD: invalid TP address %s", tpaddress_str);
+            ret = ERROR_CONFIG;
+            goto exit;
+        }
+    }
+
+    ret = ERROR_OK;
+
+exit:
+    iasp_network_address_destroy(&tpaddr);
+
+    return ret;
 }
 
 
-static int main_ffd(const modecontext_t *cfg)
+static int main_ffd(const modecontext_t *ctx)
 {
     printf("Executing FFD mode.\n");
     return ERROR_OK;
 }
 
 
-static int main_tp(const modecontext_t *cfg)
+#define TPBUFSIZE 128
+static int main_tp(const modecontext_t *ctx)
 {
+    iasp_address_t peer;
+    static uint8_t buf[TPBUFSIZE];
+    binbuf_t bb;
+
     printf("Executing TP mode.\n");
+
+    bb.buf = buf;
+    bb.size = TPBUFSIZE;
+
+    iasp_network_receive(ctx->address, &peer, &bb);
+
     return ERROR_OK;
 }
