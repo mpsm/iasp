@@ -93,14 +93,3 @@ void streambuf_reset(streambuf_t *this)
     streambuf_reset_output(this);
 }
 
-
-/* INFO: thread unsafe */
-const binbuf_t *streambuf_to_bb(const streambuf_t * const this)
-{
-    static binbuf_t bb;
-
-    bb.buf = this->data;
-    bb.size = this->size;
-
-    return &bb;
-}

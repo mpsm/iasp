@@ -59,7 +59,7 @@ void iasp_session_start(iasp_session_t * const this)
     }
 
     /* proto send message */
-    if(!iasp_network_send(this->my_addr, this->peer_addr, streambuf_to_bb(&sb))) {
-        abort();
-    }
+//    if(!iasp_network_send(this->my_addr, this->peer_addr, streambuf_to_bb(&sb))) {
+//        abort();
+//    }
 }
