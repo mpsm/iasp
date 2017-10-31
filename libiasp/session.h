@@ -10,12 +10,7 @@
 
 
 typedef struct {
-    iasp_pv_t pv;
-    iasp_spn_code_t spn;
-    uint8_t pn;
-    //bool encrypted;
-    const iasp_address_t *my_addr;
-    const iasp_address_t *peer_addr;
+    iasp_proto_ctx_t pctx;
 } iasp_session_t;
 
 

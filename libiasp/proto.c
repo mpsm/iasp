@@ -8,6 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 
 /* private fields */
@@ -86,7 +87,7 @@ static bool iasp_proto_send_common(iasp_proto_ctx_t * const this, streambuf_t * 
     iasp_proto_put_inner_hdr(&ih, this->msg_type, answer, pn);
 
     /* put headers */
-    if(!streambuf_write(&packet_sb, &oh, sizeof(oh)) || streambuf_write(&packet_sb, &ih, sizeof(ih))) {
+    if(!streambuf_write(&packet_sb, &oh, sizeof(oh)) || !streambuf_write(&packet_sb, &ih, sizeof(ih))) {
         return false;
     }
 
@@ -117,7 +118,7 @@ static bool iasp_proto_send_common(iasp_proto_ctx_t * const this, streambuf_t * 
 void iasp_proto_init(uint8_t * obuf, size_t obuflen)
 {
     assert(obuflen > 0);
-    assert(buf != NULL);
+    assert(obuf != NULL);
 
     buf = obuf;
     bufsize = obuflen;
@@ -146,4 +147,20 @@ static void iasp_reset_packet(bool encrypted)
     else {
         streambuf_init(&packet_sb, buf + sizeof(iasp_secure_header_t), 0, bufsize - sizeof(iasp_secure_header_t));
     }
+}
+
+
+void iasp_proto_ctx_init(iasp_proto_ctx_t * const this)
+{
+    assert(this != NULL);
+
+    memset(this, 0, sizeof(iasp_proto_ctx_t));
+}
+
+
+void iasp_proto_bump_pn(iasp_proto_ctx_t * const this)
+{
+    assert(this != NULL);
+
+    this->pn = (this->pn + 1) & (IASP_PROTO_PN_MAX - 1);
 }

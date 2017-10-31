@@ -21,6 +21,7 @@
 #include "libiasp/types.h"
 #include "libiasp/session.h"
 
+
 /* error codes */
 enum {
     ERROR_OK = 0,
@@ -29,11 +30,13 @@ enum {
     ERROR_RUNTIME = 3,
 };
 
+
 /* mode context */
 typedef struct {
     iasp_address_t *address;
     config_t * cfg;
 } modecontext_t;
+
 
 /* mode handling */
 typedef int (*modehandler_t)(const modecontext_t *);
@@ -50,8 +53,15 @@ static const struct {
         {NULL, NULL},
 };
 
+
+/* local buffer */
+#define IASP_BUFFER_SIZE (1024)
+static uint8_t iasp_buffer[IASP_BUFFER_SIZE];
+
+
 /* local methods */
 static bool add_key(const char *filename);
+
 
 int main(int argc, char *argv[])
 {
@@ -105,12 +115,13 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* init IASP */
+    iasp_init(iasp_buffer, IASP_BUFFER_SIZE);
+
     /* init crypto and read keys*/
     {
         unsigned int i;
         const config_setting_t *keys;
-
-        crypto_init();
 
         /* read keys locations from config */
         if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
@@ -253,7 +264,6 @@ static int main_cd(const modecontext_t *ctx)
         iasp_session_t s;
 
         iasp_session_init(&s, ctx->address, &tpaddr);
-
         iasp_session_start(&s);
     }
 

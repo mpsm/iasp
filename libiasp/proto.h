@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* INFO: might be compiler-dependent (C99 6.7.2.1/4)*/
+/* INFO: might be compiler-dependent (C99 6.7.2.1/4) */
 
 #define IASP_PROTO_PN_MAX (1 << 4)
 
@@ -47,7 +47,7 @@ typedef union {
 typedef struct {
     uint16_t spi;
     uint32_t seq;
-} iasp_secure_header_t;
+} __attribute__((packed)) iasp_secure_header_t;
 
 typedef union {
     struct {
@@ -60,8 +60,8 @@ typedef union {
 } iasp_inner_hdr_t;
 
 typedef struct {
-    iasp_address_t *addr;
-    iasp_address_t *peer;
+    const iasp_address_t *addr;
+    const iasp_address_t *peer;
     bool encrypted;
     iasp_pv_t pv;
     iasp_spn_code_t spn;
@@ -73,6 +73,8 @@ typedef struct {
 #define IASP_PROTO_MAX_HEADERS_SIZE (sizeof(iasp_inner_hdr_t) + sizeof(iasp_outer_header_t) + sizeof(iasp_secure_header_t))
 
 
+void iasp_proto_ctx_init(iasp_proto_ctx_t * const this);
+void iasp_proto_bump_pn(iasp_proto_ctx_t * const this);
 void iasp_proto_init(uint8_t * obuf, size_t obuflen);
 streambuf_t * iasp_proto_get_payload_sb(void);
 void iasp_proto_reset_payload(void);
