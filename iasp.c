@@ -286,18 +286,13 @@ static int main_ffd(const modecontext_t *ctx)
 #define TPBUFSIZE 128
 static int main_tp(const modecontext_t *ctx)
 {
+    iasp_session_t s;
     iasp_address_t peer = {NULL};
-    static uint8_t buf[TPBUFSIZE];
-    binbuf_t bb;
-
     printf("Executing TP mode.\n");
 
-    bb.buf = buf;
-    bb.size = TPBUFSIZE;
+    iasp_session_init(&s, ctx->address, &peer);
+    iasp_session_respond(&s);
 
-    memset(buf, 0, TPBUFSIZE);
-    iasp_network_receive(ctx->address, &peer, &bb);
-    printf("Received msg: %s (len: %d)\n", (char *)bb.buf, (int)bb.size);
     printf("Sender address: %s\n",IASP_NET_STR_IP(&peer));
 
     return ERROR_OK;

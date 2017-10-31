@@ -63,11 +63,13 @@ typedef struct {
     const iasp_address_t *addr;
     const iasp_address_t *peer;
     bool encrypted;
+    bool answer;
     iasp_pv_t pv;
     iasp_spn_code_t spn;
     iasp_msg_type_t msg_type;
     uint8_t pn;
 } iasp_proto_ctx_t;
+
 
 #define IASP_PROTO_HEADERS_SIZE (sizeof(iasp_inner_hdr_t) + sizeof(iasp_outer_hdr_t))
 #define IASP_PROTO_MAX_HEADERS_SIZE (sizeof(iasp_inner_hdr_t) + sizeof(iasp_outer_header_t) + sizeof(iasp_secure_header_t))
@@ -81,7 +83,7 @@ void iasp_proto_reset_payload(void);
 void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
 bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload);
-bool iasp_proto_send_answer(iasp_proto_ctx_t * const this, streambuf_t * const payload);
+bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * const peer, iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 
 
 #endif

@@ -29,6 +29,8 @@ void iasp_session_start(iasp_session_t * const this)
 {
     streambuf_t *sb;
 
+    assert(this != NULL);
+
     /* prepare headers */
     this->pctx.msg_type = IASP_MSG_HANDSHAKE;
 
@@ -47,3 +49,19 @@ void iasp_session_start(iasp_session_t * const this)
     }
 }
 
+#include <stdio.h>
+void iasp_session_respond(iasp_session_t * const this)
+{
+    iasp_proto_ctx_t pctx;
+    iasp_address_t peer_addr = {NULL};
+    streambuf_t *sb;
+
+    assert(this != NULL);
+
+    if(!iasp_proto_receive(this->pctx.addr, &peer_addr, &pctx, NULL)) {
+        abort();
+    }
+
+    sb = iasp_proto_get_payload_sb();
+    printf("Msg received (%ld).\n", sb->size);
+}
