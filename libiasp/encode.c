@@ -100,7 +100,7 @@ bool iasp_encode_ids(streambuf_t *sb, const iasp_ids_t *ids)
         if(!iasp_encode_varint(sb, (unsigned int)ids->id[i].spn)) {
             return false;
         }
-        if(!streambuf_write(sb, ids->id[0].data, sizeof(iasp_identity_t))) {
+        if(!streambuf_write(sb, ids->id[0].data, IASP_CONFIG_IDENTITY_SIZE)) {
             return false;
         }
     }
