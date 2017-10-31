@@ -2,6 +2,8 @@
 #define __IASP_PROTO_H__
 
 #include "types.h"
+#include "network.h"
+#include "streambuf.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -57,8 +59,21 @@ typedef union {
     uint8_t byte;
 } iasp_inner_hdr_t;
 
+typedef struct {
+    iasp_address_t *addr;
+    iasp_address_t *peer;
+    bool encrypted;
+    iasp_pv_t pv;
+    iasp_spn_code_t spn;
+    iasp_msg_type_t msg_type;
+    uint8_t pn;
+} iasp_proto_ctx_t;
+
 
 void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
+bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload);
+bool iasp_proto_send_answer(iasp_proto_ctx_t * const this, streambuf_t * const payload);
+
 
 #endif
