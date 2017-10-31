@@ -160,6 +160,7 @@ bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * cons
     iasp_outer_header_t oh;
     iasp_secure_header_t sh;
     streambuf_t *psb;
+    size_t payload_size;
 
     assert(addr != NULL);
     assert(peer != NULL);
@@ -208,7 +209,8 @@ bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * cons
 
     /* set payload */
     psb = payload == NULL ? &payload_sb : payload;
-    streambuf_init(psb, packet_sb.data + packet_sb.size, 0, packet_sb.max_size - packet_sb.size);
+    payload_size = packet_sb.size - packet_sb.read_index;
+    streambuf_init(psb, packet_sb.data + packet_sb.read_index, payload_size, payload_size);
 
     return true;
 }

@@ -100,7 +100,7 @@ bool iasp_encode_ids(streambuf_t *sb, const iasp_ids_t *ids)
         if(!iasp_encode_varint(sb, (unsigned int)ids->id[i].spn)) {
             return false;
         }
-        if(!streambuf_write(sb, ids->id[0].data, IASP_CONFIG_IDENTITY_SIZE)) {
+        if(!streambuf_write(sb, ids->id[i].data, IASP_CONFIG_IDENTITY_SIZE)) {
             return false;
         }
     }
@@ -122,3 +122,4 @@ bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, const iasp_hmsg_resp_hello_t *
                 iasp_encode_id(sb, &msg->id) &&
                 iasp_encode_nonce(sb, &msg->rnonce);
 }
+

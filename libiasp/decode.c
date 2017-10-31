@@ -14,7 +14,7 @@ bool iasp_decode_varint(streambuf_t *sb, unsigned int *i)
     uint8_t byte;
     unsigned int n = 0;
     unsigned vi = 0;
-    unsigned int shift;
+    unsigned int shift = 0;
     bool ret;
 
     assert(sb != NULL);
@@ -26,7 +26,7 @@ bool iasp_decode_varint(streambuf_t *sb, unsigned int *i)
             return false;
         }
 
-        vi += (byte & 0x7f) << shift;
+        vi += (unsigned int)(byte & 0x7f) << shift;
 
         if((byte & 0x80) == 0) {
             break;
@@ -131,6 +131,9 @@ bool iasp_decode_ids(streambuf_t *sb, iasp_ids_t *ids)
         }
     }
 
+    /* set count */
+    ids->id_count = count;
+
     return true;
 }
 
@@ -163,6 +166,14 @@ bool iasp_decode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned i
         }
     }
     else {
+        if(!streambuf_read(sb, &byte, sizeof(byte))) {
+            return false;
+        }
+        fc = (iasp_field_code_t)byte;
+        if(fc != field_code) {
+            return false;
+        }
+
         if(!iasp_decode_varint(sb, count)) {
             return false;
         }

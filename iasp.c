@@ -174,7 +174,7 @@ int main(int argc, char *argv[])
 
         spns = crypto_get_supported_spns();
         while(spns != NULL) {
-            printf("SPN=%d, ID: ", spns->spn_code);
+            printf("SPN=%d, ID: ", spns->id.spn);
             for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
                 printf("%02x", spns->id.data[i]);
             }

@@ -221,6 +221,9 @@ void crypto_get_ids(iasp_ids_t * const ids)
         /* copy ID */
         memcpy(ids->id[count].data, cs->id.data, sizeof(iasp_identity_t));
 
+        /* set SPN */
+        ids->id[count].spn = cs->id.spn;
+
         cs = cs->next;
         count++;
     }
