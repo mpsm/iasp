@@ -49,19 +49,24 @@ void iasp_session_start(iasp_session_t * const this)
     }
 }
 
-#include <stdio.h>
+
 void iasp_session_respond(iasp_session_t * const this)
+{
+    /* TODO: implement */
+}
+
+
+void iasp_session_handle_addr(const iasp_address_t * const addr)
 {
     iasp_proto_ctx_t pctx;
     iasp_address_t peer_addr = {NULL};
-    streambuf_t *sb;
+    //streambuf_t *sb;
 
-    assert(this != NULL);
+    assert(addr != NULL);
 
-    if(!iasp_proto_receive(this->pctx.addr, &peer_addr, &pctx, NULL)) {
+    if(!iasp_proto_receive(addr, &peer_addr, &pctx, NULL)) {
         abort();
     }
 
-    sb = iasp_proto_get_payload_sb();
-    printf("Msg received (%ld).\n", sb->size);
+    //sb = iasp_proto_get_payload_sb();
 }

@@ -14,4 +14,68 @@ typedef enum {
 } iasp_handshake_msg_code_t;
 
 
+typedef struct {
+    iasp_ids_t ids;
+} iasp_hmsg_init_hello_t;
+
+
+typedef struct {
+    iasp_identity_t id;
+    iasp_nonce_t rnonce;
+} iasp_hmsg_resp_hello_t;
+
+
+typedef struct {
+    iasp_nonce_t inonce;
+    iasp_nonce_t rnonce;
+    iasp_sig_t   sig;
+    bool         has_pkey;
+    iasp_pkey_t  pkey;
+} iasp_hmsg_init_auth_t;
+
+
+typedef struct {
+    iasp_pkey_t   pkey;
+    iasp_kparam_t kparam;
+    bool          has_hmac;
+    union {
+        iasp_sig_t ecsig;
+        iasp_hmac_t hmac;
+    } sig;
+} iasp_hmsg_resp_auth_t;
+
+
+typedef struct {
+    iasp_identity_t id;
+    iasp_ip_t       ip;
+} iasp_hmsg_redirect_t;
+
+
+typedef struct {
+    iasp_sig_t sig;
+} iasp_hmsg_session_auth_t;
+
+
+typedef struct {
+    iasp_identity_t id;
+} iasp_hmsg_hint_req_t;
+
+
+typedef struct {
+    iasp_hint_t hint;
+} iasp_hmsg_hint_resp_t;
+
+
+typedef union {
+    iasp_hmsg_init_hello_t   hmsg_init_hello;
+    iasp_hmsg_resp_hello_t   hmsg_resp_hello;
+    iasp_hmsg_init_auth_t    hmsg_init_auth;
+    iasp_hmsg_resp_auth_t    hmsg_resp_auth;
+    iasp_hmsg_redirect_t     hmsg_redirect;
+    iasp_hmsg_session_auth_t hmsg_session_auth;
+    iasp_hmsg_hint_req_t     hmsg_hint_req;
+    iasp_hmsg_hint_resp_t    hmsg_hint_resp;
+} iasp_msg_storage_t;
+
+
 #endif

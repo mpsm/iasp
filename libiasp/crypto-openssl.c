@@ -162,7 +162,7 @@ bool crypto_add_key(binbuf_t * const pkey)
 
     /* find out if SPN is already supported */
     while(cs != NULL) {
-        const crypto_context_t *ctx = crypto_get_context(cs->spn_code);
+        const crypto_context_t *ctx = crypto_get_context(cs->id.spn);
 
         assert(ctx != NULL);
 
@@ -182,7 +182,7 @@ bool crypto_add_key(binbuf_t * const pkey)
     /* allocate new crypto support structure */
     new_cs = malloc(sizeof(iasp_spn_support_t));
     new_cs->aux_data = key;
-    new_cs->spn_code = new_spn;
+    new_cs->id.spn = new_spn;
 
     crypto_eckey2id(new_spn, new_cs->aux_data, &new_cs->id);
 
@@ -203,4 +203,27 @@ bool crypto_add_key(binbuf_t * const pkey)
 bool crypto_gen_nonce(iasp_nonce_t *nonce)
 {
     return RAND_bytes(nonce->data, IASP_CONFIG_NONCE_SIZE) == 1;
+}
+
+
+void crypto_get_ids(iasp_ids_t * const ids)
+{
+    iasp_spn_support_t *cs = spn;
+    unsigned int count = 0;
+
+    assert(ids != NULL);
+
+    while(cs != NULL) {
+        if(count == IASP_MAX_IDS) {
+            break;
+        }
+
+        /* copy ID */
+        memcpy(ids->id[count].data, cs->id.data, sizeof(iasp_identity_t));
+
+        cs = cs->next;
+        count++;
+    }
+
+    ids->id_count = count;
 }

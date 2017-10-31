@@ -56,11 +56,11 @@ bool iasp_encode_field_code(streambuf_t *sb, iasp_field_code_t field_code)
 }
 
 
-bool iasp_encode_id(streambuf_t *sb, iasp_spn_code_t spn, const iasp_identity_t *id)
+bool iasp_encode_id(streambuf_t *sb, const iasp_identity_t *id)
 {
     return iasp_encode_field_code(sb, IASP_FIELD_ID) &&
-            iasp_encode_varint(sb, (unsigned int)spn) &&
-            streambuf_write(sb, id->data, sizeof(id));
+            iasp_encode_varint(sb, (unsigned int)id->spn) &&
+            streambuf_write(sb, id->data, sizeof(id->data));
 }
 
 
@@ -72,66 +72,53 @@ bool iasp_encode_nonce(streambuf_t *sb, const iasp_nonce_t *nonce)
 }
 
 
-bool iasp_encode_ids(streambuf_t *sb, const iasp_spn_support_t *spns)
+bool iasp_encode_ids(streambuf_t *sb, const iasp_ids_t *ids)
 {
-    /* go through list just to count elements rather than allocate buffer
-     * for the substream
-     */
-    const iasp_spn_support_t *el = spns;
-    unsigned int  count = 0;
+    unsigned int i;
 
-    assert(spns != NULL);
-
-    /* count */
-    while(el != NULL) {
-        count++;
-        el = el->next;
-    }
+    assert(ids != NULL);
 
     /* do not encode empty list */
-    if(count == 0) {
+    if(ids->id_count == 0) {
         return false;
     }
 
     /* encode header */
-    if(count > 1) {
-        if(iasp_encode_setof(sb, IASP_FIELD_ID, count) == false) {
+    if(ids->id_count > 1) {
+        if(iasp_encode_setof(sb, IASP_FIELD_ID, ids->id_count) == false) {
             return false;
         }
     }
-    else /* field == 1 */ {
+    else /* field count == 1 */ {
         if(iasp_encode_field_code(sb, IASP_FIELD_ID) == false) {
             return false;
         }
     }
 
     /* encode elements */
-    el = spns;
-    while(el != NULL) {
-        if(!iasp_encode_varint(sb, (unsigned int)el->spn_code)) {
+    for(i = 0; i < ids->id_count; ++i) {
+        if(!iasp_encode_varint(sb, (unsigned int)ids->id[i].spn)) {
             return false;
         }
-        if(!streambuf_write(sb, el->id.data, sizeof(iasp_identity_t))) {
+        if(!streambuf_write(sb, ids->id[0].data, sizeof(iasp_identity_t))) {
             return false;
         }
-        el = el->next;
     }
 
     return true;
 }
 
 
-bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_spn_support_t *spns)
+bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_hmsg_init_hello_t * const msg)
 {
     return iasp_encode_varint(sb, IASP_HMSG_INIT_HELLO) &&
-            iasp_encode_ids(sb, spns);
+            iasp_encode_ids(sb, &msg->ids);
 }
 
 
-bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, iasp_spn_code_t spn, const iasp_identity_t *id,
-        const iasp_nonce_t *nonce)
+bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, const iasp_hmsg_resp_hello_t * const msg)
 {
     return iasp_encode_varint(sb, IASP_HMSG_RESP_HELLO) &&
-                iasp_encode_id(sb, spn, id) &&
-                iasp_encode_nonce(sb, nonce);
+                iasp_encode_id(sb, &msg->id) &&
+                iasp_encode_nonce(sb, &msg->rnonce);
 }

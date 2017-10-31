@@ -9,7 +9,8 @@ SRCS= \
 	network-$(IASP_NETWORK).c \
 	proto.c \
 	session.c \
-	iasp.c
+	iasp.c \
+	decode.c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))
