@@ -2,6 +2,7 @@
 #include "types.h"
 #include "binbuf.h"
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -40,30 +41,57 @@ bool iasp_network_send(const iasp_address_t * const address, const iasp_address_
 
 
 /* INFO: thread unsafe */
-bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg)
+bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
+        unsigned int timeout)
 {
-    struct posix_net_aux *my_aux;
+    struct posix_net_aux *my_aux, *peer_aux;
     ssize_t rcvd;
     socklen_t saslen = sizeof(struct sockaddr_in6);
-    static struct posix_net_aux aux;
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
 
     assert(address != NULL);
     assert(peer != NULL);
 
+    assert(address->aux != NULL);
+    assert(peer->aux != NULL);
+
     /* init aux data */
     my_aux = AUX(address);
-    memset(&aux, 0, sizeof(struct posix_net_aux));
+    peer_aux = AUX(peer);
+    memset(peer_aux, 0, sizeof(struct posix_net_aux));
+
+    /* set timeout */
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+
+    /* set fd mask */
+    FD_ZERO(&rfds);
+    FD_SET(my_aux->s, &rfds);
+
+    /* wait for message */
+    retval = select(1, &rfds, NULL, NULL, &tv);
+    if(retval == -1) {
+        return false;
+    }
+
+    /* check if timeout */
+    if(retval == 0) {
+        /* timeout */
+    }
+
+    /* ensure there is a data on socket */
+    if(!FD_ISSET(my_aux->s, &rfds)) {
+        return false;
+    }
 
     /* read message */
-    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&aux.sin, &saslen);
+    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&peer_aux->sin, &saslen);
     if(rcvd == -1) {
         return false;
     }
     msg->size = (size_t)rcvd;
-
-    /* set sender address */
-    assert(peer->aux == NULL); /* leak protection */
-    peer->aux = &aux;
 
     return true;
 }
@@ -123,10 +151,8 @@ void iasp_network_address_init(iasp_address_t * const address, iasp_ip_t * const
 
     assert(address != NULL);
 
-    /* init aux structure */
-    aux = malloc(sizeof(struct posix_net_aux));
-    memset(aux, 0, sizeof(struct posix_net_aux));
-    address->aux = aux;
+    iasp_network_address_init_empty(address);
+    aux = AUX(address);
 
     /* init sin structure */
     aux->sin.sin6_family = AF_INET6;
@@ -135,6 +161,19 @@ void iasp_network_address_init(iasp_address_t * const address, iasp_ip_t * const
     aux->sin.sin6_flowinfo = 0;
     assert(sizeof(iasp_ip_t) == sizeof(struct in6_addr));
     memcpy(&aux->sin.sin6_addr, ip, sizeof(struct in6_addr));
+}
+
+
+void iasp_network_address_init_empty(iasp_address_t * const address)
+{
+    struct posix_net_aux *aux;
+
+    assert(address != NULL);
+
+    /* init aux structure */
+    aux = malloc(sizeof(struct posix_net_aux));
+    memset(aux, 0, sizeof(struct posix_net_aux));
+    address->aux = aux;
 }
 
 
@@ -236,4 +275,12 @@ bool iasp_network_address_equal(const iasp_address_t * const left, const iasp_ad
 
     return (memcmp(iasp_network_address_ip(left), iasp_network_address_ip(right), sizeof(iasp_ip_t)) == 0)
             && iasp_network_address_port(left) == iasp_network_address_port(right);
+}
+
+
+bool iasp_network_receive_any(iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
+        unsigned int timeout)
+{
+
+    return false;
 }
