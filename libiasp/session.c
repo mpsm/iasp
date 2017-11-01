@@ -232,6 +232,9 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
         if(s == NULL) {
             abort();
         }
+        iasp_proto_ctx_init(&s->pctx);
+        s->pctx.addr = pctx->addr;
+        s->pctx.peer = pctx->peer;
     }
 
     /* handle message */

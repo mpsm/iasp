@@ -68,7 +68,7 @@ bool iasp_encode_nonce(streambuf_t *sb, const iasp_nonce_t *nonce)
 {
 
     return iasp_encode_field_code(sb, IASP_FIELD_NONCE) &&
-            streambuf_write(sb, nonce->data, sizeof(nonce));
+            streambuf_write(sb, nonce->data, sizeof(iasp_nonce_t));
 }
 
 
