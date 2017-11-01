@@ -264,10 +264,7 @@ static int main_cd(const modecontext_t *ctx)
     }
 
     {
-        iasp_session_t s;
-
-        iasp_session_init(&s, ctx->address, &tpaddr);
-        iasp_session_start(&s);
+        iasp_session_start(ctx->address, &tpaddr);
     }
 
     ret = ERROR_OK;

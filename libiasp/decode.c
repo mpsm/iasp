@@ -137,11 +137,13 @@ bool iasp_decode_ids(streambuf_t *sb, iasp_ids_t *ids)
     return true;
 }
 
+
 bool iasp_decode_hmsg_resp_hello(streambuf_t *sb, iasp_hmsg_resp_hello_t * const msg)
 {
+    assert(sb != NULL);
+    assert(msg != NULL);
 
-
-    return true;
+    return iasp_decode_id(sb, &msg->id) && iasp_decode_nonce(sb, &msg->rnonce);
 }
 
 
@@ -177,6 +179,47 @@ bool iasp_decode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned i
         if(!iasp_decode_varint(sb, count)) {
             return false;
         }
+    }
+
+    return true;
+}
+
+
+bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id)
+{
+    iasp_field_code_t fc;
+
+    /* check field id */
+    if(!iasp_decode_field_code(sb, &fc) || fc != IASP_FIELD_ID) {
+        return false;
+    }
+
+    /* decode spn */
+    if(!iasp_decode_spn(sb, &id->spn)) {
+        return false;
+    }
+
+    /* decode key fingerprint */
+    if(!streambuf_read(sb, id->data, IASP_CONFIG_IDENTITY_SIZE)) {
+        return false;
+    }
+
+    return true;
+}
+
+
+bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce)
+{
+    iasp_field_code_t fc;
+
+    /* check field id */
+    if(!iasp_decode_field_code(sb, &fc) || fc != IASP_FIELD_NONCE) {
+        return false;
+    }
+
+    /* read nonce value */
+    if(!streambuf_read(sb, nonce->data, IASP_CONFIG_NONCE_SIZE)) {
+        return false;
     }
 
     return true;

@@ -31,6 +31,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 
 /* message handlers */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_resp_hello(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -45,6 +46,7 @@ typedef struct {
 static const session_handler_lookup_t cd_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {0, NULL},
 };
 
@@ -52,6 +54,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
 static const session_handler_lookup_t ffd_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {0, NULL},
 };
 
@@ -59,6 +62,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
 static const session_handler_lookup_t tp_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {0, NULL},
 };
 
@@ -81,13 +85,18 @@ void iasp_session_set_role(iasp_role_t r)
 }
 
 
-iasp_session_t *iasp_session_new()
+iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     unsigned int i;
 
     for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
         if(sessions[i].active == false) {
             sessions[i].active = true;
+
+            iasp_proto_ctx_init(&sessions[i].pctx);
+            sessions[i].pctx.addr = addr;
+            sessions[i].pctx.peer = peer;
+
             return &sessions[i];
         }
     }
@@ -109,14 +118,22 @@ void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, 
 }
 
 
-void iasp_session_start(iasp_session_t * const this)
+void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     streambuf_t *sb;
+    iasp_session_t *s;
 
-    assert(this != NULL);
+    assert(addr != NULL);
+    assert(peer != NULL);
+
+    /* get new session */
+    s = iasp_session_new(addr, peer);
+    if(s == NULL) {
+        abort();
+    }
 
     /* prepare headers */
-    this->pctx.msg_type = IASP_MSG_HANDSHAKE;
+    s->pctx.msg_type = IASP_MSG_HANDSHAKE;
 
     /* get payload space */
     iasp_proto_reset_payload();
@@ -130,9 +147,12 @@ void iasp_session_start(iasp_session_t * const this)
     }
 
     /* proto send message */
-    if(!iasp_proto_send(&this->pctx, NULL)) {
+    if(!iasp_proto_send(&s->pctx, NULL)) {
         abort();
     }
+
+    /* handle response */
+    iasp_session_handle_addr(s->pctx.addr);
 }
 
 
@@ -191,6 +211,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
         if(lookup->msg == lookup_code) {
             break;
         }
+        lookup++;
     }
 
     /* found handler */
@@ -218,23 +239,22 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
             }
 
             /* match peer address */
-            if(!iasp_network_address_equal(p->peer, pctx->peer)) {
-                continue;
+            if(iasp_network_address_equal(p->peer, pctx->peer)) {
+                s = &sessions[i];
+                break;
             }
-
-            s = &sessions[i];
         }
     }
 
     /* create new session */
-    if(s == NULL && lookup_code == MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
-        s = iasp_session_new();
+    if(s == NULL) {
+        if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
+            abort();
+        }
+        s = iasp_session_new(pctx->addr, pctx->peer);
         if(s == NULL) {
             abort();
         }
-        iasp_proto_ctx_init(&s->pctx);
-        s->pctx.addr = pctx->addr;
-        s->pctx.peer = pctx->peer;
     }
 
     /* handle message */
@@ -249,6 +269,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     streambuf_t *reply;
     iasp_spn_code_t spn;
 
+    /* decode message */
     if(!iasp_decode_hmsg_init_hello(sb, &msg.hmsg_init_hello)) {
         return false;
     }
@@ -275,4 +296,15 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     s->pctx.answer = true;
     return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
             iasp_proto_send(&s->pctx, reply);
+}
+
+
+static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * const sb)
+{
+    /* decode message */
+    if(!iasp_decode_hmsg_resp_hello(sb, &msg.hmsg_resp_hello)) {
+        return false;
+    }
+
+    return true;
 }
