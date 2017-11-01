@@ -165,6 +165,7 @@ static void iasp_reset_message()
     memset(&msg, 0, sizeof(msg));
 }
 
+
 /* MESSAGE HANDLERS */
 static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
 {
@@ -242,15 +243,33 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 
 static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 {
-    //streambuf_t *reply;
+    streambuf_t *reply;
+    iasp_spn_code_t spn;
 
     if(!iasp_decode_hmsg_init_hello(sb, &msg.hmsg_init_hello)) {
         return false;
     }
 
+    /* choose spn */
+    spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
+    if(spn == IASP_SPN_NONE) {
+        return false;
+    }
+
+    /* prepare for reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
-    //reply = iasp_proto_get_payload_sb();
+    reply = iasp_proto_get_payload_sb();
 
-    return true;
+    /* set ID */
+    crypto_get_id(spn, &msg.hmsg_resp_hello.id);
+
+    /* generate and set NONCE */
+    crypto_gen_nonce(&s->rnonce);
+    memcpy(&msg.hmsg_resp_hello.rnonce, &s->rnonce, sizeof(iasp_nonce_t));
+
+    /* send responder hello */
+    s->pctx.answer = true;
+    return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
+            iasp_proto_send(&s->pctx, reply);
 }

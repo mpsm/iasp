@@ -12,6 +12,10 @@
 typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
+
+    iasp_nonce_t rnonce;
+    iasp_nonce_t inonce;
+
 } iasp_session_t;
 
 

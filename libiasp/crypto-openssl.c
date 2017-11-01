@@ -36,6 +36,7 @@ iasp_spn_support_t *spn = NULL;
 /* private methods */
 static bool crypto_eckey2id(iasp_spn_code_t spn, EC_KEY *key, iasp_identity_t *id);
 static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn);
+static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn);
 
 
 bool crypto_init()
@@ -229,4 +230,62 @@ void crypto_get_ids(iasp_ids_t * const ids)
     }
 
     ids->id_count = count;
+}
+
+
+static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn_code)
+{
+    iasp_spn_support_t *s = spn;
+
+    while(s != NULL) {
+        if(s->id.spn == spn_code) {
+            break;
+        }
+        s = s->next;
+    }
+
+    return s;
+}
+
+
+iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids)
+{
+    unsigned int i;
+
+    assert(ids != NULL);
+
+    for(i = IASP_SPN_MAX - 1; i > IASP_SPN_NONE; i--) {
+        const iasp_spn_support_t *s = crypto_get_supported_spn(i);
+        unsigned int j;
+
+        /* spn is unsupported */
+        if(s == NULL) {
+            continue;
+        }
+
+        /* check if supported by peer */
+        for(j = 0; j < ids->id_count; ++j) {
+            if(ids->id[j].spn == i) {
+                /* found matching SPN */
+                return i;
+            }
+        }
+    }
+
+    return IASP_SPN_NONE;
+}
+
+
+bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id)
+{
+    const iasp_spn_support_t *s = crypto_get_supported_spn(spn_code);
+
+    assert(id != NULL);
+
+    if(s == NULL) {
+        return false;
+    }
+
+    memcpy(id, &s->id, sizeof(iasp_identity_t));
+    return true;
 }
