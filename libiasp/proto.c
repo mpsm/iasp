@@ -153,7 +153,8 @@ void iasp_proto_bump_pn(iasp_proto_ctx_t * const this)
 }
 
 
-bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * const peer, iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
+bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * const peer, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
+        unsigned int timeout)
 {
     binbuf_t bb;
     iasp_inner_hdr_t ih;
@@ -174,7 +175,7 @@ bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * cons
     bb.size = bufsize;
 
     /* receive msg */
-    if(!iasp_network_receive(addr, peer, &bb)) {
+    if(!iasp_network_receive(addr, peer, &bb, timeout)) {
         return false;
     }
 

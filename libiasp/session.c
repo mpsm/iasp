@@ -170,7 +170,8 @@ void iasp_session_handle_addr(const iasp_address_t * const addr)
 
     assert(addr != NULL);
 
-    if(!iasp_proto_receive(addr, &peer_addr, &pctx, NULL)) {
+    /* TODO: set timeout */
+    if(!iasp_proto_receive(addr, &peer_addr, &pctx, NULL, 5000)) {
         abort();
     }
 
