@@ -15,7 +15,7 @@ bool iasp_decode_field_code(streambuf_t *sb, iasp_field_code_t *field_code);
 bool iasp_decode_hmsg_code(streambuf_t *sb, iasp_handshake_msg_code_t *hmsg_code);
 
 /* field decoding */
-bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id);
+bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id, bool raw);
 bool iasp_decode_ids(streambuf_t *sb, iasp_ids_t *ids);
 bool iasp_decode_spn(streambuf_t *sb, iasp_spn_code_t *spn);
 bool iasp_decode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned int *count);

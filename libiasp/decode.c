@@ -9,6 +9,18 @@
 #include <stdint.h>
 
 
+static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc)
+{
+    iasp_field_code_t field_code;
+
+    if(!iasp_decode_field_code(sb, &field_code)) {
+        return false;
+    }
+
+    return fc == field_code;
+}
+
+
 bool iasp_decode_varint(streambuf_t *sb, unsigned int *i)
 {
     uint8_t byte;
@@ -117,16 +129,8 @@ bool iasp_decode_ids(streambuf_t *sb, iasp_ids_t *ids)
 
     /* decode ids */
     for(i = 0; i < count; ++i) {
-        iasp_spn_code_t spn;
-
-        /* decode spn */
-        if(!iasp_decode_spn(sb, &spn)) {
-            return false;
-        }
-        ids->id[i].spn = spn;
-
-        /* decode key fingerprint */
-        if(!streambuf_read(sb, ids->id[i].data, IASP_CONFIG_IDENTITY_SIZE)) {
+        /* decode ID */
+        if(!iasp_decode_id(sb, &ids->id[i], true)) {
             return false;
         }
     }
@@ -143,7 +147,7 @@ bool iasp_decode_hmsg_resp_hello(streambuf_t *sb, iasp_hmsg_resp_hello_t * const
     assert(sb != NULL);
     assert(msg != NULL);
 
-    return iasp_decode_id(sb, &msg->id) && iasp_decode_nonce(sb, &msg->rnonce);
+    return iasp_decode_id(sb, &msg->id, false) && iasp_decode_nonce(sb, &msg->rnonce);
 }
 
 
@@ -185,12 +189,10 @@ bool iasp_decode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned i
 }
 
 
-bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id)
+bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id, bool raw)
 {
-    iasp_field_code_t fc;
-
     /* check field id */
-    if(!iasp_decode_field_code(sb, &fc) || fc != IASP_FIELD_ID) {
+    if(!raw && !iasp_decode_check_field_code(sb, IASP_FIELD_ID)) {
         return false;
     }
 
@@ -210,10 +212,8 @@ bool iasp_decode_id(streambuf_t *sb, iasp_identity_t * const id)
 
 bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce)
 {
-    iasp_field_code_t fc;
-
     /* check field id */
-    if(!iasp_decode_field_code(sb, &fc) || fc != IASP_FIELD_NONCE) {
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_NONCE)) {
         return false;
     }
 
