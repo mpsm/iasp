@@ -14,6 +14,7 @@ void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize)
     iasp_proto_init(buf, bufsize);
     iasp_role = role;
     iasp_session_set_role(role);
+    iasp_sessions_reset();
 }
 
 

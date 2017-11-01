@@ -227,3 +227,13 @@ const char *iasp_network_ip_to_str(const iasp_ip_t * const ip)
 
     return inet_ntop(AF_INET6, (struct in6_addr *)ip, buf, IP_STR_BUFSIZE);
 }
+
+
+bool iasp_network_address_equal(const iasp_address_t * const left, const iasp_address_t * const right)
+{
+    assert(left != NULL);
+    assert(right != NULL);
+
+    return (memcmp(iasp_network_address_ip(left), iasp_network_address_ip(right), sizeof(iasp_ip_t)) == 0)
+            && iasp_network_address_port(left) == iasp_network_address_port(right);
+}

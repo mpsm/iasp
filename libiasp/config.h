@@ -36,4 +36,8 @@
 #  define IASP_CONFIG_MAX_HINT_SIZE (128)
 #endif
 
+#if !defined(IASP_CONFIG_MAX_SESSIONS)
+#  define IASP_CONFIG_MAX_SESSIONS (8)
+#endif
+
 #endif

@@ -29,6 +29,7 @@ bool iasp_network_address_init_str(iasp_address_t * const address, const char *i
 void iasp_network_address_destroy(iasp_address_t * const address);
 const iasp_ip_t *iasp_network_address_ip(const iasp_address_t * const address);
 uint16_t iasp_network_address_port(const iasp_address_t * const address);
+bool iasp_network_address_equal(const iasp_address_t * const left, const iasp_address_t * const right);
 
 /* ip related methods */
 bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str);
