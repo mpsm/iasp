@@ -45,12 +45,13 @@ static int main_ffd(const modecontext_t *cfg);
 static int main_tp(const modecontext_t *cfg);
 static const struct {
     const char *name;
+    iasp_role_t role;
     modehandler_t handler;
 } modes[] = {
-        {"CD", main_cd},
-        {"FFD", main_ffd},
-        {"TP", main_tp},
-        {NULL, NULL},
+        {"CD", IASP_ROLE_CD, main_cd},
+        {"FFD", IASP_ROLE_FFD, main_ffd},
+        {"TP", IASP_ROLE_TP, main_tp},
+        {NULL, IASP_ROLE_MAX, NULL},
 };
 
 
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
     iasp_address_t myaddr = {NULL};
     modehandler_t modehandler = NULL;
     modecontext_t ctx;
+    iasp_role_t role;
 
     /* check input arguments */
     if(argc != 2) {
@@ -103,6 +105,7 @@ int main(int argc, char *argv[])
         while(modes[m].name != NULL) {
             if(strcmp(modes[m].name, mode) == 0) {
                 modehandler = modes[m].handler;
+                role = modes[m].role;
                 break;
             }
             m++;
@@ -116,7 +119,7 @@ int main(int argc, char *argv[])
     }
 
     /* init IASP */
-    iasp_init(iasp_buffer, IASP_BUFFER_SIZE);
+    iasp_init(role, iasp_buffer, IASP_BUFFER_SIZE);
 
     /* init crypto and read keys*/
     {
