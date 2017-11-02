@@ -30,7 +30,8 @@ void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
 /* signing */
 bool crypto_sign_init(iasp_spn_code_t spn_code);
-bool crypto_sign_update(const binbuf_t * const bb);
+bool crypto_sign_update(const unsigned char *b, size_t blen);
+bool crypto_sign_update_bb(const binbuf_t * const bb);
 bool crypto_sign_final(iasp_sig_t * const sig);
 
 #endif

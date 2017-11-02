@@ -19,7 +19,8 @@
 
 #if !defined(IASP_CONFIG_MAX_PKEY_SIZE)
 /* valid for P-521 */
-#  define IASP_CONFIG_MAX_PKEY_SIZE (66+1)
+/* TODO: check */
+#  define IASP_CONFIG_MAX_PKEY_SIZE (150)
 #endif
 
 #if !defined(IASP_CONFIG_MAX_SIG_SIZE)

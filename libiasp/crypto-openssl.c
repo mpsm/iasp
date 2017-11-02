@@ -2,6 +2,7 @@
 #include "crypto-openssl.h"
 #include "binbuf.h"
 #include "types.h"
+#include "config.h"
 
 #include <openssl/bn.h>
 #include <openssl/ec.h>
@@ -21,12 +22,14 @@
 typedef struct {
     iasp_spn_code_t spn_code;
     int nid_ec;
+    unsigned int eclen;
     int nid_dgst;
     const EVP_MD *md;
 } crypto_context_t;
 static const crypto_context_t spn_map[] = {
-        {IASP_SPN_128, NID_X9_62_prime256v1, NID_sha256},
-        {IASP_SPN_256, NID_secp521r1, NID_sha512},
+        {IASP_SPN_NONE, 0, 0},
+        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256},
+        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512},
         {IASP_SPN_MAX, 0, 0},
 };
 
@@ -392,14 +395,14 @@ void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
 
 static EVP_MD_CTX sign_ctx;
 static iasp_spn_code_t sign_spn;
-
+static EVP_PKEY sign_pkey;
 
 bool crypto_sign_init(iasp_spn_code_t spn_code)
 {
     const iasp_spn_support_t *cs = crypto_get_supported_spn(spn_code);
     unsigned int i = 0;
     const EVP_MD *md = NULL;
-    EVP_PKEY pkey;
+
 
     /* check SPN */
     if(cs == NULL) {
@@ -422,16 +425,16 @@ bool crypto_sign_init(iasp_spn_code_t spn_code)
 
     /* init sign context */
     EVP_MD_CTX_init(&sign_ctx);
-    if(EVP_PKEY_set1_EC_KEY(&pkey, (EC_KEY *)cs->aux_data) == 0) {
+    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, (EC_KEY *)cs->aux_data) == 0) {
         return false;
     }
-    EVP_DigestSignInit(&sign_ctx, NULL, md, NULL, &pkey);
+    EVP_DigestSignInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
 
     return true;
 }
 
 
-bool crypto_sign_update(const binbuf_t * const bb)
+bool crypto_sign_update_bb(const binbuf_t * const bb)
 {
     return EVP_DigestSignUpdate(&sign_ctx, bb->buf, bb->size) != 0;
 }
@@ -439,15 +442,39 @@ bool crypto_sign_update(const binbuf_t * const bb)
 
 bool crypto_sign_final(iasp_sig_t * const sig)
 {
-    size_t siglen = sizeof(sig->sigdata);
+    size_t siglen;
+    static unsigned char *sigbuf;
+    static const unsigned char *psigbuf;
+    size_t dlen;
+    ECDSA_SIG* ecdsa;
 
     assert(sig != NULL);
 
-    sig->spn = sign_spn;
-    if(EVP_DigestSignFinal(&sign_ctx, sig->sigdata, &siglen) == 0) {
+    /* 7 bytes for DER structure, 2 * group size for (r, s) pair */
+    EVP_DigestSignFinal(&sign_ctx, sigbuf, &siglen);
+    psigbuf = sigbuf = malloc(siglen);
+
+    /* finish signing */
+    if(EVP_DigestSignFinal(&sign_ctx, sigbuf, &siglen) == 0) {
         return false;
     }
-    sig->siglen = siglen;
+
+    /* set sig */
+    dlen = spn_map[sign_spn].eclen;
+    memset(sig->sigdata, 0, sizeof(sig->sigdata));
+    ecdsa = d2i_ECDSA_SIG(NULL, &psigbuf, siglen);
+    BN_bn2bin(ecdsa->r, sig->sigdata + (dlen - BN_num_bytes(ecdsa->r)));
+    BN_bn2bin(ecdsa->s, sig->sigdata + (2*dlen - BN_num_bytes(ecdsa->s)));
+    sig->spn = sign_spn;
+    sig->siglen = dlen * 2;
+
+    free(sigbuf);
 
     return true;
+}
+
+
+bool crypto_sign_update(const unsigned char *b, size_t blen)
+{
+    return EVP_DigestSignUpdate(&sign_ctx, b, blen) != 0;
 }

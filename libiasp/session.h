@@ -13,6 +13,14 @@ typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
 
+    /* spn code */
+    iasp_spn_code_t spn;
+
+    /* IDs */
+    iasp_identity_t iid;
+    iasp_identity_t rid;
+
+    /* NONCEs */
     iasp_nonce_t rnonce;
     iasp_nonce_t inonce;
 
