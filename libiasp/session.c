@@ -32,6 +32,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 /* message handlers */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_resp_hello(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_init_auth(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -47,6 +48,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {0, NULL},
 };
 
@@ -55,6 +57,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {0, NULL},
 };
 
@@ -63,6 +66,7 @@ static const session_handler_lookup_t tp_session_handlers[] =
 {
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {0, NULL},
 };
 
@@ -267,6 +271,8 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 {
     streambuf_t *reply;
     iasp_spn_code_t spn;
+    iasp_identity_t *iid = NULL;
+    unsigned int i;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_hello(sb, &msg.hmsg_init_hello)) {
@@ -279,13 +285,26 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         return false;
     }
 
+    /* save initiator ID */
+    for(i = 0; i < msg.hmsg_init_hello.ids.id_count; ++i) {
+        if(msg.hmsg_init_hello.ids.id[i].spn == spn) {
+            iid = &msg.hmsg_init_hello.ids.id[i];
+            break;
+        }
+    }
+    if(iid == NULL) {
+        return false;
+    }
+    memcpy(&s->iid, iid, sizeof(iasp_identity_t));
+
     /* prepare for reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
 
-    /* set ID */
+    /* set and save own ID */
     crypto_get_id(spn, &msg.hmsg_resp_hello.id);
+    memcpy(&s->rid, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
 
     /* generate and set NONCE */
     crypto_gen_nonce(&s->rnonce);
@@ -364,4 +383,26 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
     /* send response */
     return iasp_proto_send(&s->pctx, reply);
+}
+
+
+static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const sb)
+{
+    /* decode message */
+    if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
+        return false;
+    }
+
+    /* get initiator nonce, check own nonce */
+    memcpy(&s->inonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
+    if(memcmp(&s->rnonce, &msg.hmsg_init_auth.rnonce, sizeof(iasp_nonce_t)) != 0) {
+        return false;
+    }
+
+    /* verify signature */
+    if(!crypto_verify_init(&s->iid)) {
+        return false;
+    }
+
+    return true;
 }

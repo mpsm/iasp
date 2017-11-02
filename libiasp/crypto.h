@@ -29,9 +29,13 @@ const iasp_spn_support_t* crypto_get_supported_spns(void);
 void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
 /* signing */
+size_t crypto_get_sign_length(iasp_spn_code_t spn_code);
 bool crypto_sign_init(iasp_spn_code_t spn_code);
 bool crypto_sign_update(const unsigned char *b, size_t blen);
 bool crypto_sign_update_bb(const binbuf_t * const bb);
 bool crypto_sign_final(iasp_sig_t * const sig);
+
+/* sign verify */
+bool crypto_verify_init(const iasp_identity_t * const id);
 
 #endif

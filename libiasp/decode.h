@@ -20,10 +20,12 @@ bool iasp_decode_ids(streambuf_t *sb, iasp_ids_t *ids);
 bool iasp_decode_spn(streambuf_t *sb, iasp_spn_code_t *spn);
 bool iasp_decode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned int *count);
 bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce);
+bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig);
 
 /* message decoding */
 bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const msg);
 bool iasp_decode_hmsg_resp_hello(streambuf_t *sb, iasp_hmsg_resp_hello_t * const msg);
+bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg);
 
 
 #endif

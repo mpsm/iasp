@@ -3,10 +3,12 @@
 #include "types.h"
 #include "config.h"
 #include "field.h"
+#include "crypto.h"
 
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 
 static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc)
@@ -102,7 +104,7 @@ bool iasp_decode_spn(streambuf_t *sb, iasp_spn_code_t *spn)
         return false;
     }
 
-    if(i >= IASP_SPN_MAX) {
+    if(i >= IASP_SPN_MAX || i == IASP_SPN_NONE) {
         return false;
     }
 
@@ -223,4 +225,35 @@ bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce)
     }
 
     return true;
+}
+
+
+bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
+{
+    /* check field id */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_SIG)) {
+        return false;
+    }
+
+    /* decode spn */
+    if(!iasp_decode_spn(sb, &sig->spn)) {
+        return false;
+    }
+
+    /* get signature length */
+    sig->siglen = crypto_get_sign_length(sig->spn);
+
+    /* zero buffer */
+    memset(sig->sigdata, 0, sizeof(sig->sigdata));
+
+    /* read signature data */
+    return streambuf_read(sb, sig->sigdata, sig->siglen);
+}
+
+
+bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg)
+{
+    return iasp_decode_nonce(sb, &msg->inonce) &&
+            iasp_decode_nonce(sb, &msg->rnonce) &&
+            iasp_decode_sig(sb, &msg->sig);
 }

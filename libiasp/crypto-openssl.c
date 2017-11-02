@@ -39,12 +39,19 @@ iasp_spn_support_t *spn = NULL;
 const crypto_public_keys_t *public_keys = NULL;
 
 
+/* sign and verify context */
+static EVP_MD_CTX sign_ctx;
+static iasp_spn_code_t sign_spn;
+static EVP_PKEY sign_pkey;
+
+
 /* private methods */
 static bool crypto_eckey2id(iasp_spn_code_t spn, EC_KEY *key, iasp_identity_t *id);
 static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn);
 static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn);
 static iasp_spn_code_t crypto_match_spn(EC_KEY *key);
 static bool crypto_get_public_key(EC_KEY *key, point_conversion_form_t format, uint8_t **buf, size_t *bufsize);
+static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id);
 
 
 bool crypto_init()
@@ -391,18 +398,11 @@ void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
 }
 
 
-/* signing */
-
-static EVP_MD_CTX sign_ctx;
-static iasp_spn_code_t sign_spn;
-static EVP_PKEY sign_pkey;
-
 bool crypto_sign_init(iasp_spn_code_t spn_code)
 {
     const iasp_spn_support_t *cs = crypto_get_supported_spn(spn_code);
     unsigned int i = 0;
     const EVP_MD *md = NULL;
-
 
     /* check SPN */
     if(cs == NULL) {
@@ -477,4 +477,74 @@ bool crypto_sign_final(iasp_sig_t * const sig)
 bool crypto_sign_update(const unsigned char *b, size_t blen)
 {
     return EVP_DigestSignUpdate(&sign_ctx, b, blen) != 0;
+}
+
+
+size_t crypto_get_sign_length(iasp_spn_code_t spn_code)
+{
+    return spn_map[spn_code].eclen * 2;
+}
+
+
+bool crypto_verify_init(const iasp_identity_t * const id)
+{
+    const EVP_MD *md = NULL;
+    const iasp_pkey_t *pkeybin;
+    EC_POINT *ecpoint;
+    EC_KEY *eckey;
+
+    assert(id != NULL);
+
+    /* find public key */
+    pkeybin = crypto_get_pkey_by_id(id);
+    if(pkeybin == NULL) {
+        return false;
+    }
+
+    /* initiate EVP_PKEY */
+    ecpoint = EC_POINT_new(EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec));
+    eckey = EC_KEY_new();
+    if(EC_POINT_oct2point(
+            EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec),
+            ecpoint,
+            pkeybin->pkeydata,
+            spn_map[id->spn].eclen + 1,
+            NULL) == 0) {
+        return false;
+    }
+    if(EC_KEY_set_public_key(eckey, ecpoint) == 0) {
+        return false;
+    }
+    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, eckey) == 0) {
+        return false;
+    }
+
+    /* get md for profile */
+    md = EVP_get_digestbynid(spn_map[id->spn].nid_dgst);
+
+    /* init md context */
+    EVP_MD_CTX_init(&sign_ctx);
+
+    /* init verify */
+    EVP_DigestVerifyInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
+
+    return true;
+}
+
+
+static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id)
+{
+    unsigned int i;
+
+    if(public_keys == NULL) {
+        return NULL;
+    }
+
+    for(i = 0; i < public_keys->count; ++i) {
+        if(memcmp(id, &public_keys->keys[i].id, sizeof(iasp_identity_t)) == 0) {
+            return &public_keys->keys[i].pubkey;
+        }
+    }
+
+    return NULL;
 }
