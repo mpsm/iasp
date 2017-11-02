@@ -37,5 +37,7 @@ bool crypto_sign_final(iasp_sig_t * const sig);
 
 /* sign verify */
 bool crypto_verify_init(const iasp_identity_t * const id);
+bool crypto_verify_update(const unsigned char *b, size_t blen);
+bool crypto_verify_final(const iasp_sig_t * const sig);
 
 #endif

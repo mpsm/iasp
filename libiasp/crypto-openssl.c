@@ -492,6 +492,7 @@ bool crypto_verify_init(const iasp_identity_t * const id)
     const iasp_pkey_t *pkeybin;
     EC_POINT *ecpoint;
     EC_KEY *eckey;
+    const EC_GROUP *group;
 
     assert(id != NULL);
 
@@ -502,10 +503,14 @@ bool crypto_verify_init(const iasp_identity_t * const id)
     }
 
     /* initiate EVP_PKEY */
-    ecpoint = EC_POINT_new(EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec));
+    group = EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec);
+    assert(group != NULL);
+    ecpoint = EC_POINT_new(group);
     eckey = EC_KEY_new();
+    EC_KEY_set_group(eckey, group);
+
     if(EC_POINT_oct2point(
-            EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec),
+            group,
             ecpoint,
             pkeybin->pkeydata,
             spn_map[id->spn].eclen + 1,
@@ -527,6 +532,7 @@ bool crypto_verify_init(const iasp_identity_t * const id)
 
     /* init verify */
     EVP_DigestVerifyInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
+    sign_spn = id->spn;
 
     return true;
 }
@@ -547,4 +553,37 @@ static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id
     }
 
     return NULL;
+}
+
+
+bool crypto_verify_update(const unsigned char *b, size_t blen)
+{
+    return EVP_DigestVerifyUpdate(&sign_ctx, b, blen) != 0;
+}
+
+
+bool crypto_verify_final(const iasp_sig_t * const sig)
+{
+    ECDSA_SIG* ecdsa;
+    size_t dlen;
+    size_t siglen;
+    unsigned char *ecdsa_bin;
+
+    assert(sig != NULL);
+    if(sig->spn != sign_spn) {
+        return false;
+    }
+
+    /* get ECDSA structure */
+    ecdsa = ECDSA_SIG_new();
+    dlen = spn_map[sign_spn].eclen;
+    BN_bin2bn(sig->sigdata, dlen, ecdsa->r);
+    BN_bin2bn(&sig->sigdata[dlen], dlen, ecdsa->s);
+    siglen = i2d_ECDSA_SIG(ecdsa, &ecdsa_bin);
+    if(siglen == 0) {
+        return false;
+    }
+
+    /* verify signature */
+    return EVP_DigestVerifyFinal(&sign_ctx, ecdsa_bin, siglen) != 0;
 }

@@ -270,7 +270,6 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 {
     streambuf_t *reply;
-    iasp_spn_code_t spn;
     iasp_identity_t *iid = NULL;
     unsigned int i;
 
@@ -280,14 +279,14 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     }
 
     /* choose spn */
-    spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
-    if(spn == IASP_SPN_NONE) {
+    s->spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
+    if(s->spn == IASP_SPN_NONE) {
         return false;
     }
 
     /* save initiator ID */
     for(i = 0; i < msg.hmsg_init_hello.ids.id_count; ++i) {
-        if(msg.hmsg_init_hello.ids.id[i].spn == spn) {
+        if(msg.hmsg_init_hello.ids.id[i].spn == s->spn) {
             iid = &msg.hmsg_init_hello.ids.id[i];
             break;
         }
@@ -303,7 +302,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     reply = iasp_proto_get_payload_sb();
 
     /* set and save own ID */
-    crypto_get_id(spn, &msg.hmsg_resp_hello.id);
+    crypto_get_id(s->spn, &msg.hmsg_resp_hello.id);
     memcpy(&s->rid, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
 
     /* generate and set NONCE */
@@ -388,6 +387,8 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
 static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
+    uint8_t byte;
+
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
         return false;
@@ -401,6 +402,15 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* verify signature */
     if(!crypto_verify_init(&s->iid)) {
+        return false;
+    }
+    byte = (uint8_t)s->spn;
+    crypto_verify_update(&byte, sizeof(byte));
+    crypto_verify_update(s->iid.data, sizeof(s->iid.data));
+    crypto_verify_update(s->rid.data, sizeof(s->rid.data));
+    crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
+    crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
+    if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
         return false;
     }
 
