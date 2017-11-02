@@ -301,6 +301,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
+    streambuf_t *reply;
 
     /* decode message */
     if(!iasp_decode_hmsg_resp_hello(sb, &msg.hmsg_resp_hello)) {
@@ -335,32 +336,32 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     crypto_sign_update(s->inonce.data, sizeof(s->inonce.data));
     crypto_sign_update(s->rnonce.data, sizeof(s->rnonce.data));
 
-
     /* prepare response */
-    {
-        //streambuf_t *reply;
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    reply = iasp_proto_get_payload_sb();
 
-
-        iasp_reset_message();
-        iasp_proto_reset_payload();
-        //reply = iasp_proto_get_payload_sb();
-
-        /* set ephemeral key if applicable */
-        msg.hmsg_init_auth.has_pkey = role != IASP_ROLE_CD;
-        if(msg.hmsg_init_auth.has_pkey) {
-            /* TOOD: implement */
-            abort();
-        }
-
-        /* set nonces */
-        memcpy(&msg.hmsg_init_auth.inonce.data, s->inonce.data, sizeof(iasp_nonce_t));
-        memcpy(&msg.hmsg_init_auth.rnonce.data, s->rnonce.data, sizeof(iasp_nonce_t));
-
-        /* set signature */
-        if(!crypto_sign_final(&msg.hmsg_init_auth.sig)) {
-            abort();
-        }
+    /* set ephemeral key if applicable */
+    msg.hmsg_init_auth.has_pkey = role != IASP_ROLE_CD;
+    if(msg.hmsg_init_auth.has_pkey) {
+        /* TOOD: implement */
+        abort();
     }
 
-    return true;
+    /* set nonces */
+    memcpy(&msg.hmsg_init_auth.inonce.data, s->inonce.data, sizeof(iasp_nonce_t));
+    memcpy(&msg.hmsg_init_auth.rnonce.data, s->rnonce.data, sizeof(iasp_nonce_t));
+
+    /* set signature */
+    if(!crypto_sign_final(&msg.hmsg_init_auth.sig)) {
+        abort();
+    }
+
+    /* encode reply */
+    if(!iasp_encode_hmsg_init_auth(reply, &msg.hmsg_init_auth)) {
+       abort();
+    }
+
+    /* send response */
+    return iasp_proto_send(&s->pctx, reply);
 }

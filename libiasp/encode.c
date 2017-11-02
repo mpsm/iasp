@@ -43,10 +43,15 @@ bool iasp_encode_setof(streambuf_t *sb, iasp_field_code_t field_code, unsigned i
 }
 
 
-bool iasp_encode_spn(streambuf_t *sb, iasp_spn_code_t spn)
+bool iasp_encode_spn(streambuf_t *sb, iasp_spn_code_t spn, bool raw)
 {
-    return iasp_encode_field_code(sb, IASP_FIELD_SPN) &&
-            iasp_encode_varint(sb, (unsigned int)spn);
+    if(!raw) {
+        if(!iasp_encode_field_code(sb, IASP_FIELD_SPN)) {
+            return false;
+        }
+    }
+
+    return iasp_encode_varint(sb, (unsigned int)spn);
 }
 
 
@@ -123,3 +128,19 @@ bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, const iasp_hmsg_resp_hello_t *
                 iasp_encode_nonce(sb, &msg->rnonce);
 }
 
+
+bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_HMSG_INIT_AUTH) &&
+            iasp_encode_nonce(sb, &msg->inonce) &&
+            iasp_encode_nonce(sb, &msg->rnonce) &&
+            iasp_encode_sig(sb, &msg->sig);
+}
+
+
+bool iasp_encode_sig(streambuf_t *sb, const iasp_sig_t *sig)
+{
+    return iasp_encode_field_code(sb, IASP_FIELD_SIG) &&
+            iasp_encode_spn(sb, sig->spn, true) &&
+            streambuf_write(sb, sig->sigdata, sig->siglen);
+}
