@@ -1,4 +1,5 @@
 #include "crypto.h"
+#include "crypto-openssl.h"
 #include "binbuf.h"
 #include "types.h"
 
@@ -7,6 +8,7 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/x509.h>
 
 #include <assert.h>
 #include <stdbool.h>
@@ -31,12 +33,15 @@ static const crypto_context_t spn_map[] = {
 
 /* private variables */
 iasp_spn_support_t *spn = NULL;
+const crypto_public_keys_t *public_keys = NULL;
 
 
 /* private methods */
 static bool crypto_eckey2id(iasp_spn_code_t spn, EC_KEY *key, iasp_identity_t *id);
 static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn);
 static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn);
+static iasp_spn_code_t crypto_match_spn(EC_KEY *key);
+static bool crypto_get_public_key(EC_KEY *key, point_conversion_form_t format, uint8_t **buf, size_t *bufsize);
 
 
 bool crypto_init()
@@ -85,11 +90,8 @@ static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn)
 static bool crypto_eckey2id(iasp_spn_code_t spn, EC_KEY *key, iasp_identity_t *id)
 {
     const EVP_MD *md;
-    const EC_GROUP *group;
-    const EC_POINT *pubkey;
-    BIGNUM *bn;
-    uint8_t *buf, *mdbuf;
-    size_t buflen;
+    uint8_t *buf = NULL, *mdbuf;
+    size_t buflen = 0;
     const crypto_context_t *ctx;
     unsigned int mdsize;
 
@@ -103,24 +105,69 @@ static bool crypto_eckey2id(iasp_spn_code_t spn, EC_KEY *key, iasp_identity_t *i
     md = EVP_get_digestbynid(NID_sha256);
 
     /* read public key */
-    group = EC_KEY_get0_group(key);
-    pubkey = EC_KEY_get0_public_key(key);
-    bn = EC_POINT_point2bn(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL, NULL);
-    buflen = BN_num_bytes(bn);
-    buf = malloc(buflen);
-    EC_POINT_point2oct(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, buf, buflen, NULL);
+    crypto_get_public_key(key, POINT_CONVERSION_UNCOMPRESSED, &buf, &buflen);
 
     /* calculate md */
     mdbuf = malloc(md->md_size);
     EVP_Digest(buf, buflen, mdbuf, &mdsize, md, NULL);
     memcpy(id->data, mdbuf, IASP_CONFIG_IDENTITY_SIZE);
+    id->spn = spn;
 
     /* free */
-    BN_free(bn);
     free(buf);
     free(mdbuf);
 
     return true;
+}
+
+
+static bool crypto_get_public_key(EC_KEY *key, point_conversion_form_t format, uint8_t **buf, size_t *bufsize)
+{
+    const EC_GROUP *group;
+    const EC_POINT *pubkey;
+    BIGNUM *bn;
+    size_t minbufsize;
+
+    assert(buf != NULL);
+    assert(bufsize != NULL);
+
+    group = EC_KEY_get0_group(key);
+    pubkey = EC_KEY_get0_public_key(key);
+    bn = EC_POINT_point2bn(group, pubkey, format, NULL, NULL);
+    minbufsize = BN_num_bytes(bn);
+    if(*bufsize == 0 || minbufsize <= *bufsize) {
+        *bufsize = minbufsize;
+    }
+    else {
+        return false;
+    }
+
+    if(*buf == NULL) {
+        *buf = malloc(*bufsize);
+    }
+
+    EC_POINT_point2oct(group, pubkey, format, *buf, *bufsize, NULL);
+    BN_free(bn);
+
+    return true;
+}
+
+
+static iasp_spn_code_t crypto_match_spn(EC_KEY *key)
+{
+    unsigned int i = 0;
+    int group_nid;
+
+    group_nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(key));
+
+    while(spn_map[i].spn_code != IASP_SPN_MAX) {
+        if(spn_map[i].nid_ec == group_nid) {
+            return spn_map[i].spn_code;
+        }
+        i++;
+    }
+
+    return IASP_SPN_NONE;
 }
 
 
@@ -130,15 +177,16 @@ bool crypto_add_key(binbuf_t * const pkey)
     const EC_POINT *pubkey;
     EC_KEY *key = NULL;
     int group_nid;
-    int i;
     iasp_spn_support_t *cs = spn;
     iasp_spn_support_t *new_cs;
     iasp_spn_code_t new_spn;
+    const unsigned char *key_data;
 
     assert(pkey != NULL);
 
     /* read key */
-    if(d2i_ECPrivateKey(&key, (const unsigned char **)&pkey->buf, pkey->size) == NULL) {
+    key_data = pkey->buf;
+    if(d2i_ECPrivateKey(&key, &key_data, pkey->size) == NULL) {
         return false;
     }
 
@@ -148,17 +196,12 @@ bool crypto_add_key(binbuf_t * const pkey)
     printf("Curve: %s (%d)\n",  OBJ_nid2ln(group_nid), group_nid);
 
     /* check if curve is used by known profile */
-    i = 0;
-    while(spn_map[i].spn_code != IASP_SPN_MAX) {
-        if(spn_map[i].nid_ec == group_nid) {
-            new_spn = spn_map[i].spn_code;
-        }
-        i++;
-    }
-    if(new_spn == IASP_SPN_MAX) {
+    new_spn = crypto_match_spn(key);
+    if(new_spn == IASP_SPN_MAX || new_spn == IASP_SPN_NONE) {
             printf("Cannot match SPN.\n");
             return false;
     }
+
     printf("Matched SPN profile: %u\n", (unsigned int)new_spn);
 
     /* find out if SPN is already supported */
@@ -288,4 +331,66 @@ bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id)
 
     memcpy(id, &s->id, sizeof(iasp_identity_t));
     return true;
+}
+
+
+bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * const id, const binbuf_t *bb)
+{
+    EVP_PKEY *evppkey;
+    EC_KEY *eckey;
+    const unsigned char *key_data;
+    unsigned char *okey_data;
+    size_t keysize;
+    iasp_spn_code_t matched_spn;
+
+    assert(pkey != NULL);
+    assert(bb != NULL);
+
+    key_data = bb->buf;
+    keysize = sizeof(pkey->pkeydata);
+
+    /* read public key */
+    evppkey = d2i_PUBKEY( NULL, &key_data, bb->size);
+    if(evppkey == NULL) {
+        return false;
+    }
+
+    /* get EC key */
+    eckey = EVP_PKEY_get1_EC_KEY(evppkey);
+    if(eckey == NULL) {
+        return false;
+    }
+
+    /* find SPN of a key */
+    matched_spn = crypto_match_spn(eckey);
+    if(matched_spn == IASP_SPN_MAX || matched_spn == IASP_SPN_NONE) {
+        return false;
+    }
+
+    /* get EC key data */
+    okey_data = pkey->pkeydata;
+    if(!crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &okey_data, &keysize)) {
+        return false;
+    }
+    pkey->spn = matched_spn;
+
+    /* calculate ID */
+    if(id != NULL) {
+        crypto_eckey2id(matched_spn, eckey, id);
+    }
+    return true;
+}
+
+
+bool crypto_calc_id(const iasp_pkey_t *const pkey, iasp_identity_t * const id)
+{
+
+
+    return true;
+}
+
+
+void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
+{
+    public_keys = pubkeys;
 }

@@ -15,6 +15,7 @@
 #include "libiasp/iasp.h"
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
+#include "libiasp/crypto-openssl.h"
 #include "libiasp/streambuf.h"
 #include "libiasp/encode.h"
 #include "libiasp/network.h"
@@ -62,6 +63,12 @@ static uint8_t iasp_buffer[IASP_BUFFER_SIZE];
 
 /* local methods */
 static bool add_key(const char *filename);
+static bool read_file(const char *filename, binbuf_t *bb);
+static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
+
+
+/* crypto context */
+static crypto_public_keys_t public_keys;
 
 
 int main(int argc, char *argv[])
@@ -147,6 +154,35 @@ int main(int argc, char *argv[])
                 goto exit;
             }
         }
+
+        /* read public keys */
+        if((keys = config_lookup(&cfg, "crypto.public_keys")) != NULL) {
+            size_t count = config_setting_length(keys);
+
+            public_keys.keys = malloc(sizeof(*public_keys.keys) * count);
+            public_keys.count = count;
+
+            for(i = 0; i < count; ++i) {
+                const char *keyfile = config_setting_get_string_elem(keys, i);
+
+                if(keyfile == NULL) {
+                    continue;
+                }
+
+                /* read key from specified file */
+                printf("Reding public key file: %s\n", keyfile);
+                if(!read_public_key(keyfile, &public_keys.keys[i].pubkey, &public_keys.keys[i].id)) {
+                    fprintf(stderr, "Error reading key file: %s\n", keyfile);
+                    goto exit;
+                }
+
+                /* set public keys data */
+                crypto_set_pubkeys(&public_keys);
+            }
+        }
+        else {
+            fprintf(stderr, "Crypto: warning - no public keys specified.\n");
+        }
     }
 
     /* init network */
@@ -199,13 +235,12 @@ exit:
 }
 
 
-static bool add_key(const char *filename)
+static bool read_file(const char *filename, binbuf_t *bb)
 {
     int fpkey;
     struct stat pkey_stat;
     size_t pkey_size;
     uint8_t *pkey_buf;
-    binbuf_t pkey_bb;
 
     fpkey = open(filename, O_RDONLY);
     if(fpkey < 0) {
@@ -219,20 +254,51 @@ static bool add_key(const char *filename)
     pkey_size = pkey_stat.st_size;
     pkey_buf = malloc(pkey_size);
     if(read(fpkey, pkey_buf, pkey_size) != pkey_size) {
-        fprintf(stderr, "Error reading pkey file.\n");
+        fprintf(stderr, "Error reading file %s.\n", filename);
         return false;
     }
     close(fpkey);
-    binbuf_init(&pkey_bb, pkey_buf, pkey_size);
+    binbuf_init(bb, pkey_buf, pkey_size);
+
+    return true;
+}
+
+
+static bool add_key(const char *filename)
+{
+    binbuf_t pkey_bb;
+
+    if(!read_file(filename, &pkey_bb)) {
+        return false;
+    }
 
     if(!crypto_add_key(&pkey_bb)) {
         printf("Crypto add key error: %s\n", filename);
         return false;
     }
 
-    free(pkey_buf);
+    free(pkey_bb.buf);
 
     return true;
+}
+
+
+static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id)
+{
+    binbuf_t pkey_bb;
+
+    if(!read_file(filename, &pkey_bb)) {
+        return false;
+    }
+
+    if(!crypto_openssl_extract_key(pkey, id, &pkey_bb)) {
+        return false;
+    }
+
+    free(pkey_bb.buf);
+
+    return true;
+
 }
 
 
