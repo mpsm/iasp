@@ -75,7 +75,7 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     FD_SET(my_aux->s, &rfds);
 
     /* wait for message */
-    retval = select(1, &rfds, NULL, NULL, &tv);
+    retval = select(my_aux->s + 1, &rfds, NULL, NULL, &tv);
     if(retval == -1) {
         return false;
     }
