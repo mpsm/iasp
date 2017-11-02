@@ -91,7 +91,7 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     }
 
     /* read message */
-    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&read_aux, &saslen);
+    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&read_aux.sin, &saslen);
     if(rcvd == -1) {
         return false;
     }

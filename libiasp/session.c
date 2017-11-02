@@ -168,7 +168,7 @@ void iasp_session_handle_addr(const iasp_address_t * const addr)
 
     /* TODO: set proper timeout */
     iasp_proto_ctx_init(&pctx);
-    if(!iasp_proto_receive(addr, &pctx, NULL, 5000)) {
+    if(!iasp_proto_receive(addr, &pctx, NULL, 50000)) {
         abort();
     }
 
