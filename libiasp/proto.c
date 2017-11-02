@@ -92,7 +92,7 @@ bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
     }
 
     /* send packet */
-    if(!iasp_network_send(this->addr, this->peer, &bb)) {
+    if(!iasp_network_send(&this->addr, &this->peer, &bb)) {
         return false;
     }
 
@@ -153,7 +153,7 @@ void iasp_proto_bump_pn(iasp_proto_ctx_t * const this)
 }
 
 
-bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * const peer, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
+bool iasp_proto_receive(const iasp_address_t * const addr, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
         unsigned int timeout)
 {
     binbuf_t bb;
@@ -163,8 +163,6 @@ bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * cons
     streambuf_t *psb;
     size_t payload_size;
 
-    assert(addr != NULL);
-    assert(peer != NULL);
     assert(pctx != NULL);
 
     /* reset proto context */
@@ -175,14 +173,13 @@ bool iasp_proto_receive(const iasp_address_t * const addr, iasp_address_t * cons
     bb.size = bufsize;
 
     /* receive msg */
-    if(!iasp_network_receive(addr, peer, &bb, timeout)) {
+    if(!iasp_network_receive(addr, &pctx->peer, &bb, timeout)) {
         return false;
     }
+    memcpy(&pctx->addr, addr, sizeof(iasp_address_t));
 
     /* init streambuf */
     streambuf_init(&packet_sb, bb.buf, bb.size, bufsize);
-    pctx->addr = addr;
-    pctx->peer = peer;
 
     /* read outer header */
     if(!streambuf_read(&packet_sb, &oh.byte, sizeof(oh))) {

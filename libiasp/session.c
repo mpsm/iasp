@@ -91,13 +91,9 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
 
     for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
         if(sessions[i].active == false) {
-            sessions[i].active = true;
-
-            iasp_proto_ctx_init(&sessions[i].pctx);
-            sessions[i].pctx.addr = addr;
-            sessions[i].pctx.peer = peer;
-
-            return &sessions[i];
+            iasp_session_t *s = &sessions[i];
+            iasp_session_init(s, addr, peer);
+            return s;
         }
     }
 
@@ -112,9 +108,10 @@ void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, 
 
     memset(this, 0, sizeof(iasp_session_t));
 
+    this->active = true;
     iasp_proto_ctx_init(&this->pctx);
-    this->pctx.addr = addr;
-    this->pctx.peer = peer_addr;
+    iasp_network_address_dup(addr, &this->pctx.addr);
+    iasp_network_address_dup(peer_addr, &this->pctx.peer);
 }
 
 
@@ -152,7 +149,7 @@ void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
     }
 
     /* handle response */
-    iasp_session_handle_addr(s->pctx.addr);
+    iasp_session_handle_addr(&s->pctx.addr);
 }
 
 
@@ -165,13 +162,13 @@ void iasp_session_respond(iasp_session_t * const this)
 void iasp_session_handle_addr(const iasp_address_t * const addr)
 {
     iasp_proto_ctx_t pctx;
-    iasp_address_t peer_addr = {NULL};
     streambuf_t *sb;
 
     assert(addr != NULL);
 
-    /* TODO: set timeout */
-    if(!iasp_proto_receive(addr, &peer_addr, &pctx, NULL, 5000)) {
+    /* TODO: set proper timeout */
+    iasp_proto_ctx_init(&pctx);
+    if(!iasp_proto_receive(addr, &pctx, NULL, 5000)) {
         abort();
     }
 
@@ -235,12 +232,12 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
             p = &sessions[i].pctx;
 
             /* match my address */
-            if(!iasp_network_address_equal(p->addr, pctx->addr)) {
+            if(!iasp_network_address_equal(&p->addr, &pctx->addr)) {
                 continue;
             }
 
             /* match peer address */
-            if(iasp_network_address_equal(p->peer, pctx->peer)) {
+            if(iasp_network_address_equal(&p->peer, &pctx->peer)) {
                 s = &sessions[i];
                 break;
             }
@@ -253,7 +250,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
             abort();
         }
         /* TODO: dup peer address */
-        s = iasp_session_new(pctx->addr, pctx->peer);
+        s = iasp_session_new(&pctx->addr, &pctx->peer);
         if(s == NULL) {
             abort();
         }

@@ -23,6 +23,10 @@ struct posix_net_aux {
 };
 
 
+/* private data */
+static struct posix_net_aux read_aux;
+
+
 #define AUX(x) ((struct posix_net_aux *)x->aux)
 
 
@@ -44,7 +48,7 @@ bool iasp_network_send(const iasp_address_t * const address, const iasp_address_
 bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout)
 {
-    struct posix_net_aux *my_aux, *peer_aux;
+    struct posix_net_aux *my_aux;
     ssize_t rcvd;
     socklen_t saslen = sizeof(struct sockaddr_in6);
     fd_set rfds;
@@ -55,16 +59,12 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     assert(peer != NULL);
 
     assert(address->aux != NULL);
+    assert(peer->aux == NULL);
 
-    /* init peer address if empty */
-    if(peer->aux == NULL) {
-        iasp_network_address_init_empty(peer);
-    }
 
     /* init aux data */
     my_aux = AUX(address);
-    peer_aux = AUX(peer);
-    memset(peer_aux, 0, sizeof(struct posix_net_aux));
+    memset(&read_aux, 0, sizeof(struct posix_net_aux));
 
     /* set timeout */
     tv.tv_sec = timeout / 1000;
@@ -91,11 +91,12 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     }
 
     /* read message */
-    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&peer_aux->sin, &saslen);
+    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&read_aux, &saslen);
     if(rcvd == -1) {
         return false;
     }
     msg->size = (size_t)rcvd;
+    peer->aux = &read_aux;
 
     return true;
 }
@@ -287,4 +288,18 @@ bool iasp_network_receive_any(iasp_address_t * const address, iasp_address_t * c
 {
 
     return false;
+}
+
+
+void iasp_network_address_dup(const iasp_address_t * const address, iasp_address_t *new)
+{
+    struct posix_net_aux *aux, *new_aux;
+
+    assert(address != NULL);
+    assert(new != NULL);
+
+    aux = AUX(address);
+    new_aux = malloc(sizeof(struct posix_net_aux));
+    memcpy(new_aux, aux, sizeof(struct posix_net_aux));
+    new->aux = new_aux;
 }
