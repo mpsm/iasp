@@ -28,4 +28,9 @@ bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id);
 const iasp_spn_support_t* crypto_get_supported_spns(void);
 void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
+/* signing */
+bool crypto_sign_init(iasp_spn_code_t spn_code);
+bool crypto_sign_update(const binbuf_t * const bb);
+bool crypto_sign_final(iasp_sig_t * const sig);
+
 #endif

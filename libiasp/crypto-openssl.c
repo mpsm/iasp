@@ -382,15 +382,72 @@ bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * cons
 }
 
 
-bool crypto_calc_id(const iasp_pkey_t *const pkey, iasp_identity_t * const id)
+void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
 {
+    public_keys = pubkeys;
+}
 
+
+/* signing */
+
+static EVP_MD_CTX sign_ctx;
+static iasp_spn_code_t sign_spn;
+
+
+bool crypto_sign_init(iasp_spn_code_t spn_code)
+{
+    const iasp_spn_support_t *cs = crypto_get_supported_spn(spn_code);
+    unsigned int i = 0;
+    const EVP_MD *md = NULL;
+    EVP_PKEY pkey;
+
+    /* check SPN */
+    if(cs == NULL) {
+        return false;
+    }
+
+    /* get proper MD */
+    while(spn_map[i].spn_code != IASP_SPN_MAX) {
+        if(spn_map[i].spn_code == spn_code) {
+            md = EVP_get_digestbynid(spn_map[i].nid_dgst);
+            break;
+        }
+        i++;
+    }
+    if(i == IASP_SPN_MAX) {
+        /* MD not found */
+        return false;
+    }
+    sign_spn = spn_code;
+
+    /* init sign context */
+    EVP_MD_CTX_init(&sign_ctx);
+    if(EVP_PKEY_set1_EC_KEY(&pkey, (EC_KEY *)cs->aux_data) == 0) {
+        return false;
+    }
+    EVP_DigestSignInit(&sign_ctx, NULL, md, NULL, &pkey);
 
     return true;
 }
 
 
-void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
+bool crypto_sign_update(const binbuf_t * const bb)
 {
-    public_keys = pubkeys;
+    return EVP_DigestSignUpdate(&sign_ctx, bb->buf, bb->size) != 0;
+}
+
+
+bool crypto_sign_final(iasp_sig_t * const sig)
+{
+    size_t siglen = sizeof(sig->sigdata);
+
+    assert(sig != NULL);
+
+    sig->spn = sign_spn;
+    if(EVP_DigestSignFinal(&sign_ctx, sig->sigdata, &siglen) == 0) {
+        return false;
+    }
+    sig->siglen = siglen;
+
+    return true;
 }
