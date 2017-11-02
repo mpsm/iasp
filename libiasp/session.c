@@ -252,6 +252,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
         if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
             abort();
         }
+        /* TODO: dup peer address */
         s = iasp_session_new(pctx->addr, pctx->peer);
         if(s == NULL) {
             abort();

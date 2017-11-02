@@ -55,7 +55,11 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     assert(peer != NULL);
 
     assert(address->aux != NULL);
-    assert(peer->aux != NULL);
+
+    /* init peer address if empty */
+    if(peer->aux == NULL) {
+        iasp_network_address_init_empty(peer);
+    }
 
     /* init aux data */
     my_aux = AUX(address);

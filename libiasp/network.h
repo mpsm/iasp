@@ -22,7 +22,7 @@ bool iasp_network_release_address(iasp_address_t * const address);
 bool iasp_network_send(const iasp_address_t * const address, const iasp_address_t * const peer, const binbuf_t * const msg);
 bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout);
-bool iasp_network_receive_any(iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
+bool iasp_network_receive_any(iasp_address_t * const address,  iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout);
 
 /* address related methods */
