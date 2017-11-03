@@ -33,6 +33,9 @@ bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id);
 const iasp_spn_support_t* crypto_get_supported_spns(void);
 void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
+/* public keys */
+size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
+
 /* signing */
 size_t crypto_get_sign_length(iasp_spn_code_t spn_code);
 bool crypto_sign_init(iasp_spn_code_t spn_code);
@@ -46,7 +49,7 @@ bool crypto_verify_update(const unsigned char *b, size_t blen);
 bool crypto_verify_final(const iasp_sig_t * const sig);
 
 /* ECDHE */
-bool crypto_ecdhe_genkey();
+bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx);
 bool crypto_ecdhe_compute_secret(void);
 
 

@@ -34,6 +34,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_resp_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_init_auth(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_resp_auth(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -50,6 +51,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {0, NULL},
 };
 
@@ -59,6 +61,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {0, NULL},
 };
 
@@ -68,6 +71,7 @@ static const session_handler_lookup_t tp_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO), iasp_handler_init_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {0, NULL},
 };
 
@@ -154,6 +158,9 @@ void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
     }
 
     /* handle response */
+    iasp_session_handle_addr(&s->pctx.addr);
+
+    /* handle second response */
     iasp_session_handle_addr(&s->pctx.addr);
 }
 
@@ -389,7 +396,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     return iasp_proto_send(&s->pctx, reply);
 }
 
-
+#include <stdio.h>
 static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
@@ -420,6 +427,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
         return false;
     }
+    printf("AUTH OK!");
 
     /* prepare reply */
     iasp_reset_message();
@@ -449,4 +457,33 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* send reply */
     return iasp_proto_send(&s->pctx, reply);
+}
+
+
+static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const sb)
+{
+    uint8_t byte;
+
+    if(!iasp_decode_hmsg_resp_auth(sb, &msg.hmsg_resp_auth)) {
+        return false;
+    }
+
+    if(!crypto_verify_init(&s->rid)) {
+        return false;
+    }
+    byte = (uint8_t)s->spn;
+    crypto_verify_update(&byte, sizeof(byte));
+    crypto_verify_update(s->iid.data, sizeof(s->iid.data));
+    crypto_verify_update(s->rid.data, sizeof(s->rid.data));
+    crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
+    crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+    if(!crypto_verify_final(&msg.hmsg_resp_auth.sig.ecsig)) {
+        printf("AUTH FAIL\n");
+        return false;
+    }
+
+    printf("AUTH OK!\n");
+
+    return true;
 }

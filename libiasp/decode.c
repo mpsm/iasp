@@ -251,9 +251,39 @@ bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
 }
 
 
+bool iasp_decode_pkey(streambuf_t *sb, iasp_pkey_t * const pkey)
+{
+    /* check field id */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_PKEY)) {
+        return false;
+    }
+
+    /* decode spn */
+    if(!iasp_decode_spn(sb, &pkey->spn)) {
+        return false;
+    }
+
+    /* get pkey length */
+    pkey->pkeylen = crypto_get_pkey_length(pkey->spn, true);
+
+    /* zero buffer */
+    memset(pkey->pkeydata, 0, sizeof(pkey->pkeydata));
+
+    /* read public key data */
+    return streambuf_read(sb, pkey->pkeydata, pkey->pkeylen);
+}
+
+
 bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg)
 {
     return iasp_decode_nonce(sb, &msg->inonce) &&
             iasp_decode_nonce(sb, &msg->rnonce) &&
             iasp_decode_sig(sb, &msg->sig);
+}
+
+
+bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const msg)
+{
+    return iasp_decode_pkey(sb, &msg->pkey) &&
+            iasp_decode_sig(sb, &msg->sig.ecsig);
 }

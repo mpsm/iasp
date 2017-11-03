@@ -623,3 +623,16 @@ bool crypto_ecdhe_compute_secret()
 
     return false;
 }
+
+
+size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed)
+{
+    size_t dlen = spn_map[spn].eclen;
+
+    if(compressed) {
+        return dlen + 1;
+    }
+    else {
+        return dlen * 2 + 1;
+    }
+}
