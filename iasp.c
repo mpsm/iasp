@@ -175,10 +175,10 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "Error reading key file: %s\n", keyfile);
                     goto exit;
                 }
-
-                /* set public keys data */
-                crypto_set_pubkeys(&public_keys);
             }
+
+            /* set public keys data */
+            crypto_set_pubkeys(&public_keys);
         }
         else {
             fprintf(stderr, "Crypto: warning - no public keys specified.\n");
