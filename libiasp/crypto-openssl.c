@@ -11,6 +11,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
+#include <openssl/hmac.h>
 
 #include <assert.h>
 #include <stdbool.h>
@@ -25,13 +26,17 @@ typedef struct {
     int nid_ec;
     unsigned int eclen;
     int nid_dgst;
-    const EVP_MD *md;
+    void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen);
 } crypto_context_t;
+static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen);
+static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen);
+static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen);
+
 static const crypto_context_t spn_map[] = {
-        {IASP_SPN_NONE, 0, 0},
-        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256},
-        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512},
-        {IASP_SPN_MAX, 0, 0},
+        {IASP_SPN_NONE, 0, 0, 0, NULL},
+        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256, kdf_spn1},
+        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512, kdf_spn2},
+        {IASP_SPN_MAX, 0, 0, 0, NULL},
 };
 
 
@@ -662,7 +667,7 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
     }
 
     /* compute secret */
-    return ECDH_compute_key(secret, secretlen, ecpoint, own_key, NULL) != 0;
+    return ECDH_compute_key(secret, secretlen, ecpoint, own_key, spn_map[pkey->spn].kdf) != 0;
 }
 
 
@@ -677,3 +682,71 @@ size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed)
         return dlen * 2 + 1;
     }
 }
+
+
+static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen)
+{
+    const EVP_MD *md =  EVP_get_digestbynid(spn_map[IASP_SPN_128].nid_dgst);
+    return kdf_common(md, in, inlen, out, outlen);
+}
+
+
+static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen)
+{
+    const EVP_MD *md =  EVP_get_digestbynid(spn_map[IASP_SPN_256].nid_dgst);
+    return kdf_common(md, in, inlen, out, outlen);
+}
+
+
+static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen)
+{
+    HMAC_CTX ctx;
+    unsigned char *tblock;
+    unsigned char *obuf = out;
+    uint8_t *cnt;
+    unsigned hmac_len;
+    size_t generated;
+
+    /* allocate and reset tblock */
+    tblock = malloc(md->md_size + 1);
+    memset(tblock, 0, md->md_size);
+    cnt = &tblock[md->md_size];
+
+    /* generate T(0) */
+    *cnt = 0x01;
+    HMAC_CTX_init(&ctx);
+    HMAC_Init_ex(&ctx, in, inlen, md, NULL);
+    HMAC_Update(&ctx, cnt, 1);
+    HMAC_Final(&ctx, tblock, &hmac_len);
+    generated = md->md_size;
+
+    /* generate T(1) .. T(N) */
+    for(;;) {
+        if(generated < *outlen) {
+            memcpy(obuf, tblock, md->md_size);
+            obuf += md->md_size;
+        }
+        else {
+            if(generated == *outlen) {
+                memcpy(obuf, tblock, md->md_size);
+            }
+            else {
+                memcpy(obuf, tblock, *outlen % md->md_size);
+            }
+
+            free(tblock);
+            return out;
+        }
+
+        *cnt = *cnt + 1;
+        HMAC_CTX_init(&ctx);
+        HMAC_Init_ex(&ctx, in, inlen, md, NULL);
+        HMAC_Update(&ctx, tblock, md->md_size + 1);
+        HMAC_Final(&ctx, tblock, &hmac_len);
+        generated += md->md_size;
+    }
+
+    /* never reached */
+    return NULL;
+}
+

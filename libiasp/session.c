@@ -441,16 +441,16 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* generate secret */
     {
-        static uint8_t secret[32];
+        static uint8_t secret[96];
         unsigned int i;
 
-        if(!crypto_ecdhe_compute_secret_by_id(&s->iid, &tpd->ecdhe_ctx, secret, 32)) {
+        if(!crypto_ecdhe_compute_secret_by_id(&s->iid, &tpd->ecdhe_ctx, secret, sizeof(secret))) {
             printf("ECDHE failed\n");
             return false;
         }
 
         printf("ECDHE OK: ");
-        for(i = 0; i < 32; ++i) {
+        for(i = 0; i < sizeof(secret); ++i) {
             printf("%02x", secret[i]);
         }
         printf("\n");
@@ -505,16 +505,16 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     printf("AUTH OK!\n");
 
     {
-        uint8_t secret[32];
+        uint8_t secret[96];
         unsigned int i;
 
-        if(!crypto_ecdhe_compute_secret(&msg.hmsg_resp_auth.pkey, NULL, secret, 32)) {
+        if(!crypto_ecdhe_compute_secret(&msg.hmsg_resp_auth.pkey, NULL, secret, sizeof(secret))) {
             printf("ECDHE failed\n");
             return false;
         }
 
         printf("ECDHE OK: ");
-        for(i = 0; i < 32; ++i) {
+        for(i = 0; i < sizeof(secret); ++i) {
             printf("%02x", secret[i]);
         }
         printf("\n");
