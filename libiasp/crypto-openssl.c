@@ -6,6 +6,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/ec.h>
+#include <openssl/ecdh.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -52,7 +53,7 @@ static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn);
 static iasp_spn_code_t crypto_match_spn(EC_KEY *key);
 static bool crypto_get_public_key(EC_KEY *key, point_conversion_form_t format, uint8_t **buf, size_t *bufsize);
 static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id);
-
+bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey);
 
 bool crypto_init()
 {
@@ -383,6 +384,7 @@ bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * cons
         return false;
     }
     pkey->spn = matched_spn;
+    pkey->pkeylen = keysize;
 
     /* calculate ID */
     if(id != NULL) {
@@ -486,13 +488,41 @@ size_t crypto_get_sign_length(iasp_spn_code_t spn_code)
 }
 
 
+bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey)
+{
+    EC_POINT *ecpoint;
+    EC_KEY *eckey;
+    const EC_GROUP *group;
+
+    group = EC_GROUP_new_by_curve_name(spn_map[pkey->spn].nid_ec);
+    assert(group != NULL);
+    ecpoint = EC_POINT_new(group);
+    eckey = EC_KEY_new();
+    EC_KEY_set_group(eckey, group);
+
+    if(EC_POINT_oct2point(
+            group,
+            ecpoint,
+            pkey->pkeydata,
+            spn_map[pkey->spn].eclen + 1,
+            NULL) == 0) {
+        return false;
+    }
+    if(EC_KEY_set_public_key(eckey, ecpoint) == 0) {
+        return false;
+    }
+    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, eckey) == 0) {
+        return false;
+    }
+
+    return true;
+}
+
+
 bool crypto_verify_init(const iasp_identity_t * const id)
 {
     const EVP_MD *md = NULL;
     const iasp_pkey_t *pkeybin;
-    EC_POINT *ecpoint;
-    EC_KEY *eckey;
-    const EC_GROUP *group;
 
     assert(id != NULL);
 
@@ -503,24 +533,7 @@ bool crypto_verify_init(const iasp_identity_t * const id)
     }
 
     /* initiate EVP_PKEY */
-    group = EC_GROUP_new_by_curve_name(spn_map[id->spn].nid_ec);
-    assert(group != NULL);
-    ecpoint = EC_POINT_new(group);
-    eckey = EC_KEY_new();
-    EC_KEY_set_group(eckey, group);
-
-    if(EC_POINT_oct2point(
-            group,
-            ecpoint,
-            pkeybin->pkeydata,
-            spn_map[id->spn].eclen + 1,
-            NULL) == 0) {
-        return false;
-    }
-    if(EC_KEY_set_public_key(eckey, ecpoint) == 0) {
-        return false;
-    }
-    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, eckey) == 0) {
+    if(!crypto_pkey_to_evp(pkeybin, &sign_pkey)) {
         return false;
     }
 
@@ -618,10 +631,38 @@ bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecd
 }
 
 
-bool crypto_ecdhe_compute_secret()
+bool crypto_ecdhe_compute_secret_by_id(const iasp_identity_t * const id, const crypto_ecdhe_context_t *ecdhe_ctx,
+        uint8_t *secret, size_t secretlen)
 {
+    return crypto_ecdhe_compute_secret(crypto_get_pkey_by_id(id), ecdhe_ctx, secret, secretlen);
+}
 
-    return false;
+
+bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx,
+        uint8_t *secret, size_t secretlen)
+{
+    EC_KEY *own_key;
+    EC_POINT *ecpoint;
+    const EC_GROUP *group;
+
+    /* determine private key */
+    if(ecdhe_ctx == NULL || ecdhe_ctx->ctx == NULL) {
+        const iasp_spn_support_t *cs = crypto_get_supported_spn(pkey->spn);
+        own_key = (EC_KEY *)cs->aux_data;
+    }
+    else {
+        own_key = (EC_KEY *)ecdhe_ctx->ctx;
+    }
+
+    /* setup public key */
+    group = EC_GROUP_new_by_curve_name(spn_map[pkey->spn].nid_ec);
+    ecpoint = EC_POINT_new(group);
+    if(EC_POINT_oct2point(group, ecpoint, pkey->pkeydata, pkey->pkeylen, NULL) == 0) {
+        return false;
+    }
+
+    /* compute secret */
+    return ECDH_compute_key(secret, secretlen, ecpoint, own_key, NULL) != 0;
 }
 
 

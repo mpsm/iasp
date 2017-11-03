@@ -416,6 +416,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* verify signature */
     if(!crypto_verify_init(&s->iid)) {
+        printf("verify init failed\n");
         return false;
     }
     byte = (uint8_t)s->spn;
@@ -425,9 +426,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
     crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
     if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
+        printf("AUTH failed\n");
         return false;
     }
-    printf("AUTH OK!");
+    printf("AUTH OK!\n");
 
     /* prepare reply */
     iasp_reset_message();
@@ -436,6 +438,23 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* generate ephemral key */
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
+
+    /* generate secret */
+    {
+        static uint8_t secret[32];
+        unsigned int i;
+
+        if(!crypto_ecdhe_compute_secret_by_id(&s->iid, &tpd->ecdhe_ctx, secret, 32)) {
+            printf("ECDHE failed\n");
+            return false;
+        }
+
+        printf("ECDHE OK: ");
+        for(i = 0; i < 32; ++i) {
+            printf("%02x", secret[i]);
+        }
+        printf("\n");
+    }
 
     /* sign negotiation */
     msg.hmsg_resp_auth.has_hmac = false;
@@ -484,6 +503,22 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     }
 
     printf("AUTH OK!\n");
+
+    {
+        uint8_t secret[32];
+        unsigned int i;
+
+        if(!crypto_ecdhe_compute_secret(&msg.hmsg_resp_auth.pkey, NULL, secret, 32)) {
+            printf("ECDHE failed\n");
+            return false;
+        }
+
+        printf("ECDHE OK: ");
+        for(i = 0; i < 32; ++i) {
+            printf("%02x", secret[i]);
+        }
+        printf("\n");
+    }
 
     return true;
 }

@@ -50,7 +50,10 @@ bool crypto_verify_final(const iasp_sig_t * const sig);
 
 /* ECDHE */
 bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx);
-bool crypto_ecdhe_compute_secret(void);
+bool crypto_ecdhe_compute_secret_by_id(const iasp_identity_t * const id, const crypto_ecdhe_context_t *ecdhe_ctx,
+        uint8_t *secret, size_t secretlen);
+bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx,
+        uint8_t *secret, size_t secretlen);
 
 
 #endif
