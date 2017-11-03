@@ -73,6 +73,7 @@ typedef struct {
 
 typedef struct {
     iasp_spn_code_t spn;
+    size_t pkeylen;
     uint8_t pkeydata[IASP_CONFIG_MAX_PKEY_SIZE];
 } iasp_pkey_t;
 

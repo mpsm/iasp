@@ -138,9 +138,25 @@ bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * c
 }
 
 
+bool iasp_encode_hmsg_resp_auth(streambuf_t *sb, const iasp_hmsg_resp_auth_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_HMSG_RESP_AUTH) &&
+            iasp_encode_pkey(sb, &msg->pkey) &&
+            iasp_encode_sig(sb, &msg->sig.ecsig);
+}
+
+
 bool iasp_encode_sig(streambuf_t *sb, const iasp_sig_t *sig)
 {
     return iasp_encode_field_code(sb, IASP_FIELD_SIG) &&
             iasp_encode_spn(sb, sig->spn, true) &&
             streambuf_write(sb, sig->sigdata, sig->siglen);
+}
+
+
+bool iasp_encode_pkey(streambuf_t *sb, const iasp_pkey_t *pkey)
+{
+    return iasp_encode_field_code(sb, IASP_FIELD_PKEY) &&
+            iasp_encode_spn(sb, pkey->spn, true) &&
+            streambuf_write(sb, pkey->pkeydata, pkey->pkeylen);
 }

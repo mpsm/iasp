@@ -24,6 +24,8 @@ typedef struct {
     iasp_nonce_t rnonce;
     iasp_nonce_t inonce;
 
+    /* auxiliary data, mode specific */
+    void *aux;
 } iasp_session_t;
 
 

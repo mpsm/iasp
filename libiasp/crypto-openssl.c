@@ -587,3 +587,39 @@ bool crypto_verify_final(const iasp_sig_t * const sig)
     /* verify signature */
     return EVP_DigestVerifyFinal(&sign_ctx, ecdsa_bin, siglen) != 0;
 }
+
+
+bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx)
+{
+    EC_KEY *eckey;
+    size_t pubkeylen;
+    unsigned char *pubkeybuf;
+
+    eckey = EC_KEY_new_by_curve_name(spn_map[spn_code].nid_ec);
+    assert(eckey != NULL);
+
+    if(EC_KEY_generate_key(eckey) != 1) {
+        return false;
+    }
+
+    /* store private key */
+    if(ecdhe_ctx != NULL) {
+        ecdhe_ctx->ctx = eckey;
+    }
+
+    /* store public key */
+    pkey->spn = spn_code;
+    pubkeylen = spn_map[spn_code].eclen + 1;
+    pubkeybuf = pkey->pkeydata;
+    crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &pubkeybuf, &pubkeylen);
+    pkey->pkeylen = pubkeylen;
+
+    return true;
+}
+
+
+bool crypto_ecdhe_compute_secret()
+{
+
+    return false;
+}

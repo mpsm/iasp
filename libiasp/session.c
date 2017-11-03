@@ -5,6 +5,7 @@
 #include "decode.h"
 #include "streambuf.h"
 #include "types.h"
+#include "tp.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -309,6 +310,10 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     crypto_gen_nonce(&s->rnonce);
     memcpy(&msg.hmsg_resp_hello.rnonce, &s->rnonce, sizeof(iasp_nonce_t));
 
+    /* allocate TP data for future use */
+    s->aux = malloc(sizeof(iasp_tpdata_t));
+    iasp_tpdata_init(s->aux);
+
     /* send responder hello */
     s->pctx.answer = true;
     return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
@@ -388,6 +393,8 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
+    streambuf_t *reply;
+    iasp_tpdata_t *tpd = (iasp_tpdata_t *)s->aux;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
@@ -414,5 +421,32 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
-    return true;
+    /* prepare reply */
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    reply = iasp_proto_get_payload_sb();
+
+    /* generate ephemral key */
+    crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
+
+    /* sign negotiation */
+    msg.hmsg_resp_auth.has_hmac = false;
+    if(!crypto_sign_init(s->spn)) {
+        abort();
+    }
+    crypto_sign_update(&byte, sizeof(byte));
+    crypto_sign_update(s->iid.data, sizeof(s->iid.data));
+    crypto_sign_update(s->rid.data, sizeof(s->rid.data));
+    crypto_sign_update(s->inonce.data, sizeof(s->inonce.data));
+    crypto_sign_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+    crypto_sign_final(&msg.hmsg_resp_auth.sig.ecsig);
+
+    /* encode reply */
+    if(!iasp_encode_hmsg_resp_auth(reply, &msg.hmsg_resp_auth)) {
+        return false;
+    }
+
+    /* send reply */
+    return iasp_proto_send(&s->pctx, reply);
 }

@@ -10,7 +10,8 @@ SRCS= \
 	proto.c \
 	session.c \
 	iasp.c \
-	decode.c
+	decode.c \
+	tp.c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))

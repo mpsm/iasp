@@ -17,6 +17,11 @@ typedef struct {
 } crypto_public_keys_t;
 
 
+typedef struct{
+    void *ctx;
+} crypto_ecdhe_context_t;
+
+
 bool crypto_init(void);
 bool crypto_add_key(binbuf_t * const pkey);
 void crypto_get_ids(iasp_ids_t * const ids);
@@ -39,5 +44,10 @@ bool crypto_sign_final(iasp_sig_t * const sig);
 bool crypto_verify_init(const iasp_identity_t * const id);
 bool crypto_verify_update(const unsigned char *b, size_t blen);
 bool crypto_verify_final(const iasp_sig_t * const sig);
+
+/* ECDHE */
+bool crypto_ecdhe_genkey();
+bool crypto_ecdhe_compute_secret(void);
+
 
 #endif
