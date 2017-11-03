@@ -2,6 +2,10 @@ CFLAGS= -g -O0 -Wall -Werror
 LDFLAGS= -L libiasp -static-libgcc
 CC?= gcc
 
+ifdef OPENSSL_PATH
+LDFLAGS+= -L $(OPENSSL_PATH)
+endif
+
 all: unittest iasp
 
 test: clean unittest

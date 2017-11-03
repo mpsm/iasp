@@ -20,6 +20,10 @@ AR?= ar
 CC?= gcc
 CFLAGS+= -O0 -g -Wall -Werror
 
+ifdef OPENSSL_PATH
+CFLAGS+=-I $(OPENSSL_PATH)/include
+endif
+
 LIBNAME= libiasp
 
 all: $(LIBNAME).a

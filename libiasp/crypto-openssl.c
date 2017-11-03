@@ -580,7 +580,7 @@ bool crypto_verify_final(const iasp_sig_t * const sig)
     ECDSA_SIG* ecdsa;
     size_t dlen;
     size_t siglen;
-    unsigned char *ecdsa_bin;
+    unsigned char *ecdsa_bin = NULL;
 
     assert(sig != NULL);
     if(sig->spn != sign_spn) {
