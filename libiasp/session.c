@@ -288,6 +288,9 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         return false;
     }
 
+    /* mark session side */
+    s->side = SESSION_SIDE_RESPONDER;
+
     /* choose spn */
     s->spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
     if(s->spn == IASP_SPN_NONE) {
@@ -339,6 +342,9 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     uint8_t byte;
     streambuf_t *reply;
     iasp_session_side_data_t *i, *r;
+
+    /* mark session side */
+    s->side = SESSION_SIDE_INITIATOR;
 
     /* decode message */
     if(!iasp_decode_hmsg_resp_hello(sb, &msg.hmsg_resp_hello)) {
