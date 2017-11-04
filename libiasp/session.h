@@ -12,6 +12,7 @@
 typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
+    iasp_salt_t salt;
 
     /* spn code */
     iasp_spn_code_t spn;
@@ -23,6 +24,10 @@ typedef struct {
     /* NONCEs */
     iasp_nonce_t rnonce;
     iasp_nonce_t inonce;
+
+    /* keys */
+    iasp_key_t ikey;
+    iasp_key_t rkey;
 
     /* auxiliary data, mode specific */
     void *aux;

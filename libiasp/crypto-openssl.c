@@ -26,6 +26,7 @@ typedef struct {
     int nid_ec;
     unsigned int eclen;
     int nid_dgst;
+    size_t keysize;
     void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen);
 } crypto_context_t;
 static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen);
@@ -33,10 +34,10 @@ static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen);
 static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen);
 
 static const crypto_context_t spn_map[] = {
-        {IASP_SPN_NONE, 0, 0, 0, NULL},
-        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256, kdf_spn1},
-        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512, kdf_spn2},
-        {IASP_SPN_MAX, 0, 0, 0, NULL},
+        {IASP_SPN_NONE, 0, 0, 0, 0, NULL},
+        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256, 16, kdf_spn1},
+        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512, 32, kdf_spn2},
+        {IASP_SPN_MAX, 0, 0, 0, 0, NULL},
 };
 
 
@@ -57,7 +58,6 @@ static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn);
 static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn);
 static iasp_spn_code_t crypto_match_spn(EC_KEY *key);
 static bool crypto_get_public_key(EC_KEY *key, point_conversion_form_t format, uint8_t **buf, size_t *bufsize);
-static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id);
 bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey);
 
 bool crypto_init()
@@ -556,7 +556,7 @@ bool crypto_verify_init(const iasp_identity_t * const id)
 }
 
 
-static const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id)
+const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id)
 {
     unsigned int i;
 
@@ -748,5 +748,11 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
 
     /* never reached */
     return NULL;
+}
+
+
+size_t crypto_get_key_size(iasp_spn_code_t spn)
+{
+    return spn_map[spn].keysize;
 }
 

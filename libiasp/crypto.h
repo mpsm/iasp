@@ -35,6 +35,7 @@ void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
 /* public keys */
 size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
+const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id);
 
 /* signing */
 size_t crypto_get_sign_length(iasp_spn_code_t spn_code);
@@ -54,6 +55,9 @@ bool crypto_ecdhe_compute_secret_by_id(const iasp_identity_t * const id, const c
         uint8_t *secret, size_t secretlen);
 bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx,
         uint8_t *secret, size_t secretlen);
+
+/* symmetric crypto */
+size_t crypto_get_key_size(iasp_spn_code_t spn);
 
 
 #endif

@@ -28,6 +28,7 @@ static iasp_role_t role;
 /* private methods */
 static void iasp_reset_message(void);
 static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
+static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 
 
 /* message handlers */
@@ -396,12 +397,13 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     return iasp_proto_send(&s->pctx, reply);
 }
 
-#include <stdio.h>
+
 static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
     streambuf_t *reply;
     iasp_tpdata_t *tpd = (iasp_tpdata_t *)s->aux;
+    const iasp_pkey_t *pkey;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
@@ -416,7 +418,6 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* verify signature */
     if(!crypto_verify_init(&s->iid)) {
-        printf("verify init failed\n");
         return false;
     }
     byte = (uint8_t)s->spn;
@@ -426,34 +427,24 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
     crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
     if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
-        printf("AUTH failed\n");
         return false;
     }
-    printf("AUTH OK!\n");
 
     /* prepare reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
 
-    /* generate ephemral key */
+    /* generate ephemeral key */
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
 
     /* generate secret */
-    {
-        static uint8_t secret[96];
-        unsigned int i;
-
-        if(!crypto_ecdhe_compute_secret_by_id(&s->iid, &tpd->ecdhe_ctx, secret, sizeof(secret))) {
-            printf("ECDHE failed\n");
-            return false;
-        }
-
-        printf("ECDHE OK: ");
-        for(i = 0; i < sizeof(secret); ++i) {
-            printf("%02x", secret[i]);
-        }
-        printf("\n");
+    pkey = crypto_get_pkey_by_id(&s->iid);
+    if(pkey == NULL) {
+        return false;
+    }
+    if(iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+        return false;
     }
 
     /* sign negotiation */
@@ -487,6 +478,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* verify signature */
     if(!crypto_verify_init(&s->rid)) {
         return false;
     }
@@ -498,27 +490,41 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
     crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
     if(!crypto_verify_final(&msg.hmsg_resp_auth.sig.ecsig)) {
-        printf("AUTH FAIL\n");
         return false;
     }
 
-    printf("AUTH OK!\n");
-
-    {
-        uint8_t secret[96];
-        unsigned int i;
-
-        if(!crypto_ecdhe_compute_secret(&msg.hmsg_resp_auth.pkey, NULL, secret, sizeof(secret))) {
-            printf("ECDHE failed\n");
-            return false;
-        }
-
-        printf("ECDHE OK: ");
-        for(i = 0; i < sizeof(secret); ++i) {
-            printf("%02x", secret[i]);
-        }
-        printf("\n");
+    if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, NULL)) {
+        return false;
     }
 
     return true;
 }
+
+
+static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx)
+{
+    static uint8_t buffer[IASP_MAX_KEY_SIZE*2 + sizeof(iasp_salt_t)];
+    size_t keysize = crypto_get_key_size(pkey->spn);
+    size_t gensize = 2*keysize + sizeof(iasp_salt_t);
+
+    assert(gensize < sizeof(buffer));
+
+    /* complete ECDHE */
+    if(!crypto_ecdhe_compute_secret(pkey, ecdhe_ctx, buffer, gensize)) {
+        return false;
+    }
+
+    /* distribute material */
+    memcpy(s->ikey.keydata, buffer, keysize);
+    memcpy(s->rkey.keydata, buffer + keysize, keysize);
+    memcpy(s->salt.saltdata, buffer + 2*keysize, sizeof(iasp_salt_t));
+
+    /* key information */
+    s->ikey.keysize = s->rkey.keysize = keysize;
+    s->ikey.spn = s->rkey.spn = pkey->spn;
+
+    return true;
+}
+
+
+

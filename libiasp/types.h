@@ -82,11 +82,25 @@ typedef struct {
     uint8_t hintdata[IASP_CONFIG_MAX_HINT_SIZE];
 } iasp_hint_t;
 
-#define IASP_MAX_IDS (2)
 
+#define IASP_MAX_IDS (2)
 typedef struct {
     size_t id_count;
     iasp_identity_t id[IASP_MAX_IDS];
 } iasp_ids_t;
+
+
+#define IASP_SALT_SIZE (4)
+typedef struct {
+    uint8_t saltdata[IASP_SALT_SIZE];
+} iasp_salt_t;
+
+
+#define IASP_MAX_KEY_SIZE (32)
+typedef struct {
+    size_t keysize;
+    iasp_spn_code_t spn;
+    uint8_t keydata[IASP_MAX_KEY_SIZE];
+} iasp_key_t;
 
 #endif
