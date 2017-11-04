@@ -103,4 +103,12 @@ typedef struct {
     uint8_t keydata[IASP_MAX_KEY_SIZE];
 } iasp_key_t;
 
+
+/* network byte order */
+typedef union {
+    uint16_t spi;
+    uint8_t spidata[sizeof(uint16_t)];
+} iasp_spi_t;
+
+
 #endif

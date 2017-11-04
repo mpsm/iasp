@@ -29,6 +29,10 @@ typedef struct {
     iasp_key_t ikey;
     iasp_key_t rkey;
 
+    /* SPIs */
+    iasp_spi_t ispi;
+    iasp_spi_t rspi;
+
     /* auxiliary data, mode specific */
     void *aux;
 } iasp_session_t;

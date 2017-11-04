@@ -438,6 +438,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* generate ephemeral key */
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
 
+    /* set SPis */
+    memcpy(s->ispi.spidata, s->inonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(s->rspi.spidata, s->rnonce.data + 2, sizeof(iasp_spi_t));
+
     /* generate secret */
     pkey = crypto_get_pkey_by_id(&s->iid);
     if(pkey == NULL) {
@@ -493,6 +497,11 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* set SPis */
+    memcpy(s->ispi.spidata, s->inonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(s->rspi.spidata, s->rnonce.data + 2, sizeof(iasp_spi_t));
+
+    /* generate shared secret */
     if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, NULL)) {
         return false;
     }
@@ -504,13 +513,21 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx)
 {
     static uint8_t buffer[IASP_MAX_KEY_SIZE*2 + sizeof(iasp_salt_t)];
+    static uint8_t saltbuffer[sizeof(iasp_spi_t) * 2];
+    binbuf_t saltbb;
     size_t keysize = crypto_get_key_size(pkey->spn);
     size_t gensize = 2*keysize + sizeof(iasp_salt_t);
 
     assert(gensize < sizeof(buffer));
 
+    /* prepare salt buffer */
+    memcpy(saltbuffer, s->ispi.spidata, sizeof(iasp_spi_t));
+    memcpy(saltbuffer + sizeof(iasp_spi_t), s->rspi.spidata, sizeof(iasp_spi_t));
+    saltbb.buf = saltbuffer;
+    saltbb.size = sizeof(saltbuffer);
+
     /* complete ECDHE */
-    if(!crypto_ecdhe_compute_secret(pkey, ecdhe_ctx, buffer, gensize)) {
+    if(!crypto_ecdhe_compute_secret(pkey, ecdhe_ctx, buffer, gensize, &saltbb)) {
         return false;
     }
 

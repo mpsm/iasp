@@ -27,11 +27,11 @@ typedef struct {
     unsigned int eclen;
     int nid_dgst;
     size_t keysize;
-    void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen);
+    void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 } crypto_context_t;
-static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen);
-static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen);
-static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen);
+static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
+static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
+static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 
 static const crypto_context_t spn_map[] = {
         {IASP_SPN_NONE, 0, 0, 0, 0, NULL},
@@ -636,19 +636,18 @@ bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecd
 }
 
 
-bool crypto_ecdhe_compute_secret_by_id(const iasp_identity_t * const id, const crypto_ecdhe_context_t *ecdhe_ctx,
-        uint8_t *secret, size_t secretlen)
-{
-    return crypto_ecdhe_compute_secret(crypto_get_pkey_by_id(id), ecdhe_ctx, secret, secretlen);
-}
-
-
 bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx,
-        uint8_t *secret, size_t secretlen)
+        uint8_t *secret, size_t secretlen, const binbuf_t * const salt)
 {
     EC_KEY *own_key;
     EC_POINT *ecpoint;
     const EC_GROUP *group;
+    static uint8_t *secretbuf;
+    size_t eclen = spn_map[pkey->spn].eclen;
+
+    /* allocate secret buffer */
+    secretbuf = malloc(eclen);
+    memset(secretbuf, 0, eclen);
 
     /* determine private key */
     if(ecdhe_ctx == NULL || ecdhe_ctx->ctx == NULL) {
@@ -667,7 +666,12 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
     }
 
     /* compute secret */
-    return ECDH_compute_key(secret, secretlen, ecpoint, own_key, spn_map[pkey->spn].kdf) != 0;
+    if(ECDH_compute_key(secretbuf, eclen, ecpoint, own_key, NULL) == 0) {
+        return false;
+    }
+
+    /* derive secret */
+    return spn_map[pkey->spn].kdf(secretbuf, eclen, secret, &secretlen, salt) != NULL;
 }
 
 
@@ -684,21 +688,21 @@ size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed)
 }
 
 
-static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen)
+static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const salt)
 {
     const EVP_MD *md =  EVP_get_digestbynid(spn_map[IASP_SPN_128].nid_dgst);
-    return kdf_common(md, in, inlen, out, outlen);
+    return kdf_common(md, in, inlen, out, outlen, salt);
 }
 
 
-static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen)
+static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const salt)
 {
     const EVP_MD *md =  EVP_get_digestbynid(spn_map[IASP_SPN_256].nid_dgst);
-    return kdf_common(md, in, inlen, out, outlen);
+    return kdf_common(md, in, inlen, out, outlen, salt);
 }
 
 
-static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen)
+static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const salt)
 {
     HMAC_CTX ctx;
     unsigned char *tblock;
@@ -706,16 +710,19 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
     uint8_t *cnt;
     unsigned hmac_len;
     size_t generated;
+    size_t tblocklen;
 
     /* allocate and reset tblock */
-    tblock = malloc(md->md_size + 1);
-    memset(tblock, 0, md->md_size);
-    cnt = &tblock[md->md_size];
+    tblocklen = md->md_size + salt->size + sizeof(*cnt);
+    tblock = malloc(tblocklen);
+    memset(tblock, 0, md->md_size + salt->size);
+    cnt = &tblock[md->md_size + salt->size];
 
     /* generate T(0) */
     *cnt = 0x01;
     HMAC_CTX_init(&ctx);
     HMAC_Init_ex(&ctx, in, inlen, md, NULL);
+    HMAC_Update(&ctx, salt->buf, salt->size);
     HMAC_Update(&ctx, cnt, 1);
     HMAC_Final(&ctx, tblock, &hmac_len);
     generated = md->md_size;
@@ -741,7 +748,7 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
         *cnt = *cnt + 1;
         HMAC_CTX_init(&ctx);
         HMAC_Init_ex(&ctx, in, inlen, md, NULL);
-        HMAC_Update(&ctx, tblock, md->md_size + 1);
+        HMAC_Update(&ctx, tblock, tblocklen);
         HMAC_Final(&ctx, tblock, &hmac_len);
         generated += md->md_size;
     }
