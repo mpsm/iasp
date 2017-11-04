@@ -11,15 +11,28 @@ SRCS= \
 	session.c \
 	iasp.c \
 	decode.c \
-	tp.c
+	tp.c \
+	debug.c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))
 
 AR?= ar
 CC?= gcc
-CFLAGS+= -O0 -g -Wall -Werror
+CFLAGS+= -Wall -Werror
 
+# set DEBUG options
+ifndef IASP_DEBUG
+IASP_DEBUG=0
+endif
+
+ifeq ($(IASP_DEBUG), 1)
+CFLAGS+= -O0 -g -DIASP_DEBUG=1
+else
+CFLAGS+= -Os
+endif
+
+# set openssl include path
 ifdef OPENSSL_PATH
 CFLAGS+=-I $(OPENSSL_PATH)/include
 endif

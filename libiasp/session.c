@@ -6,6 +6,7 @@
 #include "streambuf.h"
 #include "types.h"
 #include "tp.h"
+#include "debug.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -317,6 +318,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* generate and set NONCE */
     crypto_gen_nonce(&s->rnonce);
     memcpy(&msg.hmsg_resp_hello.rnonce, &s->rnonce, sizeof(iasp_nonce_t));
+    debug_print_nonce(&s->rnonce);
 
     /* allocate TP data for future use */
     s->aux = malloc(sizeof(iasp_tpdata_t));
