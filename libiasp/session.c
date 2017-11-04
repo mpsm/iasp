@@ -327,8 +327,10 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     }
 
     /* allocate TP data for future use */
-    s->aux = malloc(sizeof(iasp_tpdata_t));
-    iasp_tpdata_init(s->aux);
+    if(role != IASP_ROLE_CD) {
+        iasp_tpdata_t *tpd = s->aux;
+        iasp_tpdata_init(&tpd);
+    }
 
     /* send responder hello */
     s->pctx.answer = true;
@@ -388,11 +390,16 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
 
-    /* set ephemeral key if applicable */
-    msg.hmsg_init_auth.has_pkey = role != IASP_ROLE_CD;
-    if(msg.hmsg_init_auth.has_pkey) {
-        /* TOOD: implement */
-        abort();
+    if(role != IASP_ROLE_CD) {
+        iasp_tpdata_t *tpd;
+
+        /* allocate TP data for future use */
+        iasp_tpdata_init(&tpd);
+        s->aux = tpd;
+
+        /* set ephemeral key */
+        msg.hmsg_init_auth.has_pkey = true;
+        crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.pkey, &tpd->ecdhe_ctx);
     }
 
     /* set nonces */
@@ -451,6 +458,25 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* choose key for ECDHE */
+    if(!msg.hmsg_init_auth.has_pkey) {
+        /* find pkey by peer key id */
+        pkey = crypto_get_pkey_by_id(&i->id);
+        if(pkey == NULL) {
+            return false;
+        }
+        debug_log("Using peer's public key for ECDHE\n");
+    }
+    else {
+        pkey = &msg.hmsg_init_auth.pkey;
+        debug_log("Using received ephemeral key for ECDHE\n");
+    }
+
+    /* generate shared secret */
+    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+        return false;
+    }
+
     /* prepare reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
@@ -463,14 +489,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
-    /* generate secret */
-    pkey = crypto_get_pkey_by_id(&i->id);
-    if(pkey == NULL) {
-        return false;
-    }
-    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
-        return false;
-    }
+
 
     /* sign negotiation */
     msg.hmsg_resp_auth.has_hmac = false;
@@ -574,6 +593,4 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
 
     return true;
 }
-
-
 

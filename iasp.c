@@ -340,8 +340,40 @@ exit:
 
 static int main_ffd(const modecontext_t *ctx)
 {
-    printf("Executing FFD mode.\n");
-    return ERROR_OK;
+    iasp_address_t tpaddr = {NULL};
+    int ret = ERROR_RUNTIME;
+
+    printf("\nExecuting FFD mode.\n\n");
+
+    /* get TP address from config */
+    {
+        const char *tpaddress_str;
+
+        if(config_lookup_string(ctx->cfg, "ffd.tpaddress", &tpaddress_str) == CONFIG_FALSE) {
+            fprintf(stderr, "FFD: specify TP address in configuration");
+            ret = ERROR_CONFIG;
+            goto exit;
+        }
+
+        if(!iasp_network_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
+            fprintf(stderr, "FFD: invalid TP address %s", tpaddress_str);
+            ret = ERROR_CONFIG;
+            goto exit;
+        }
+
+        debug_log("FFD: Trust Point address: %s\n", tpaddress_str);
+    }
+
+    {
+        iasp_session_start(ctx->address, &tpaddr);
+    }
+
+    ret = ERROR_OK;
+
+exit:
+    iasp_network_address_destroy(&tpaddr);
+
+    return ret;
 }
 
 

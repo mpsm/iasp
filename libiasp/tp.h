@@ -10,7 +10,8 @@ typedef struct {
 } iasp_tpdata_t;
 
 
-void iasp_tpdata_init(iasp_tpdata_t * const this);
+void iasp_tpdata_init(iasp_tpdata_t **this);
+void iasp_tpdata_destroy(iasp_tpdata_t **this);
 
 
 #endif

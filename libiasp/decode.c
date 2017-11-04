@@ -276,9 +276,25 @@ bool iasp_decode_pkey(streambuf_t *sb, iasp_pkey_t * const pkey)
 
 bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg)
 {
-    return iasp_decode_nonce(sb, &msg->inonce) &&
-            iasp_decode_nonce(sb, &msg->rnonce) &&
-            iasp_decode_sig(sb, &msg->sig);
+    if(!iasp_decode_nonce(sb, &msg->inonce) ||
+            !iasp_decode_nonce(sb, &msg->rnonce) ||
+            !iasp_decode_sig(sb, &msg->sig)) {
+        return false;
+    }
+
+    /* if something is left it should be optional pkey */
+    if(!streambuf_read_empty(sb)) {
+        if(!iasp_decode_pkey(sb, &msg->pkey)) {
+            return false;
+        }
+
+        msg->has_pkey = true;
+    }
+    else {
+        msg->has_pkey = false;
+    }
+
+    return true;
 }
 
 

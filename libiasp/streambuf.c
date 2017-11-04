@@ -93,3 +93,8 @@ void streambuf_reset(streambuf_t *this)
     streambuf_reset_output(this);
 }
 
+
+bool streambuf_read_empty(const streambuf_t * const this)
+{
+    return this->size == this->read_index;
+}

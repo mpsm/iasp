@@ -131,10 +131,19 @@ bool iasp_encode_hmsg_resp_hello(streambuf_t *sb, const iasp_hmsg_resp_hello_t *
 
 bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * const msg)
 {
-    return iasp_encode_varint(sb, IASP_HMSG_INIT_AUTH) &&
-            iasp_encode_nonce(sb, &msg->inonce) &&
-            iasp_encode_nonce(sb, &msg->rnonce) &&
-            iasp_encode_sig(sb, &msg->sig);
+    if(!iasp_encode_varint(sb, IASP_HMSG_INIT_AUTH) ||
+            !iasp_encode_nonce(sb, &msg->inonce) ||
+            !iasp_encode_nonce(sb, &msg->rnonce) ||
+            !iasp_encode_sig(sb, &msg->sig)) {
+        return false;
+    }
+
+    /* encode pkey if applicable */
+    if(msg->has_pkey) {
+        return iasp_encode_pkey(sb, &msg->pkey);
+    }
+
+    return true;
 }
 
 
