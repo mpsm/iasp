@@ -489,14 +489,14 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* generate ephemeral key */
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
 
+    /* set SPis */
+    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+
     /* generate shared secret */
     if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
         return false;
     }
-
-    /* set SPis */
-    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
-    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
     /* sign negotiation */
     msg.hmsg_resp_auth.has_hmac = false;

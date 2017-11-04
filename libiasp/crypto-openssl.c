@@ -721,6 +721,10 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
     size_t generated;
     size_t tblocklen;
 
+    debug_log("Using SALT for ECDHE: ");
+    debug_print_binary(salt->buf, salt->size);
+    debug_newline();
+
     /* allocate and reset tblock */
     tblocklen = md->md_size + salt->size + sizeof(*cnt);
     tblock = malloc(tblocklen);
