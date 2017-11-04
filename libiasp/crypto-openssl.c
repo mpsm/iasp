@@ -716,6 +716,7 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
     tblocklen = md->md_size + salt->size + sizeof(*cnt);
     tblock = malloc(tblocklen);
     memset(tblock, 0, md->md_size + salt->size);
+    memcpy(tblock + salt->size, salt->buf, salt->size);
     cnt = &tblock[md->md_size + salt->size];
 
     /* generate T(0) */

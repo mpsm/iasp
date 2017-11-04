@@ -447,7 +447,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     if(pkey == NULL) {
         return false;
     }
-    if(iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
         return false;
     }
 
@@ -518,7 +518,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     size_t keysize = crypto_get_key_size(pkey->spn);
     size_t gensize = 2*keysize + sizeof(iasp_salt_t);
 
-    assert(gensize < sizeof(buffer));
+    assert(gensize <= sizeof(buffer));
 
     /* prepare salt buffer */
     memcpy(saltbuffer, s->ispi.spidata, sizeof(iasp_spi_t));
