@@ -304,7 +304,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     if(iid == NULL) {
         return false;
     }
-    memcpy(&s->iid, iid, sizeof(iasp_identity_t));
+    memcpy(&s->sides[SESSION_SIDE_INITIATOR].id, iid, sizeof(iasp_identity_t));
 
     /* prepare for reply */
     iasp_reset_message();
@@ -313,12 +313,15 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 
     /* set and save own ID */
     crypto_get_id(s->spn, &msg.hmsg_resp_hello.id);
-    memcpy(&s->rid, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
+    memcpy(&s->sides[SESSION_SIDE_RESPONDER].id, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
 
     /* generate and set NONCE */
-    crypto_gen_nonce(&s->rnonce);
-    memcpy(&msg.hmsg_resp_hello.rnonce, &s->rnonce, sizeof(iasp_nonce_t));
-    debug_print_nonce(&s->rnonce);
+    {
+        iasp_nonce_t *rn = &s->sides[SESSION_SIDE_RESPONDER].nonce;
+        crypto_gen_nonce(rn);
+        memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
+        debug_print_nonce(rn);
+    }
 
     /* allocate TP data for future use */
     s->aux = malloc(sizeof(iasp_tpdata_t));
@@ -335,28 +338,33 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 {
     uint8_t byte;
     streambuf_t *reply;
+    iasp_session_side_data_t *i, *r;
 
     /* decode message */
     if(!iasp_decode_hmsg_resp_hello(sb, &msg.hmsg_resp_hello)) {
         return false;
     }
 
+    /* get sides */
+    i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
+
     /* get SPN */
     s->spn = msg.hmsg_resp_hello.id.spn;
 
     /* get my ID */
-    if(!crypto_get_id(s->spn, &s->iid)) {
+    if(!crypto_get_id(s->spn, &r->id)) {
         return false;
     }
 
     /* get responder ID */
-    memcpy(&s->rid, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
+    memcpy(&r->id, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
 
     /* get responder NONCE */
-    memcpy(&s->rnonce, &msg.hmsg_resp_hello.rnonce, sizeof(iasp_nonce_t));
+    memcpy(&r->nonce, &msg.hmsg_resp_hello.rnonce, sizeof(iasp_nonce_t));
 
     /* generate NONCE */
-    crypto_gen_nonce(&s->inonce);
+    crypto_gen_nonce(&i->nonce);
 
     /* signing */
     if(!crypto_sign_init(s->spn)) {
@@ -364,10 +372,10 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     }
     byte = (uint8_t)s->spn;
     crypto_sign_update(&byte, sizeof(byte));
-    crypto_sign_update(s->iid.data, sizeof(s->iid.data));
-    crypto_sign_update(s->rid.data, sizeof(s->rid.data));
-    crypto_sign_update(s->inonce.data, sizeof(s->inonce.data));
-    crypto_sign_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_sign_update(i->id.data, sizeof(i->id.data));
+    crypto_sign_update(r->id.data, sizeof(r->id.data));
+    crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
+    crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
 
     /* prepare response */
     iasp_reset_message();
@@ -382,8 +390,8 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     }
 
     /* set nonces */
-    memcpy(&msg.hmsg_init_auth.inonce.data, s->inonce.data, sizeof(iasp_nonce_t));
-    memcpy(&msg.hmsg_init_auth.rnonce.data, s->rnonce.data, sizeof(iasp_nonce_t));
+    memcpy(&msg.hmsg_init_auth.inonce.data, i->nonce.data, sizeof(iasp_nonce_t));
+    memcpy(&msg.hmsg_init_auth.rnonce.data, r->nonce.data, sizeof(iasp_nonce_t));
 
     /* set signature */
     if(!crypto_sign_final(&msg.hmsg_init_auth.sig)) {
@@ -406,28 +414,33 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     streambuf_t *reply;
     iasp_tpdata_t *tpd = (iasp_tpdata_t *)s->aux;
     const iasp_pkey_t *pkey;
+    iasp_session_side_data_t *i, *r;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
         return false;
     }
 
+    /* get sides */
+    i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
+
     /* get initiator nonce, check own nonce */
-    memcpy(&s->inonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
-    if(memcmp(&s->rnonce, &msg.hmsg_init_auth.rnonce, sizeof(iasp_nonce_t)) != 0) {
+    memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
+    if(memcmp(&r->nonce, &msg.hmsg_init_auth.rnonce, sizeof(iasp_nonce_t)) != 0) {
         return false;
     }
 
     /* verify signature */
-    if(!crypto_verify_init(&s->iid)) {
+    if(!crypto_verify_init(&i->id)) {
         return false;
     }
     byte = (uint8_t)s->spn;
     crypto_verify_update(&byte, sizeof(byte));
-    crypto_verify_update(s->iid.data, sizeof(s->iid.data));
-    crypto_verify_update(s->rid.data, sizeof(s->rid.data));
-    crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
-    crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_verify_update(i->id.data, sizeof(i->id.data));
+    crypto_verify_update(r->id.data, sizeof(r->id.data));
+    crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
+    crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
     if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
         return false;
     }
@@ -441,11 +454,11 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
 
     /* set SPis */
-    memcpy(s->ispi.spidata, s->inonce.data + 2, sizeof(iasp_spi_t));
-    memcpy(s->rspi.spidata, s->rnonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
     /* generate secret */
-    pkey = crypto_get_pkey_by_id(&s->iid);
+    pkey = crypto_get_pkey_by_id(&i->id);
     if(pkey == NULL) {
         return false;
     }
@@ -459,10 +472,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         abort();
     }
     crypto_sign_update(&byte, sizeof(byte));
-    crypto_sign_update(s->iid.data, sizeof(s->iid.data));
-    crypto_sign_update(s->rid.data, sizeof(s->rid.data));
-    crypto_sign_update(s->inonce.data, sizeof(s->inonce.data));
-    crypto_sign_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_sign_update(i->id.data, sizeof(i->id.data));
+    crypto_sign_update(r->id.data, sizeof(r->id.data));
+    crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
+    crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
     crypto_sign_final(&msg.hmsg_resp_auth.sig.ecsig);
 
@@ -479,29 +492,35 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
+    iasp_session_side_data_t *i, *r;
 
+    /* decode message */
     if(!iasp_decode_hmsg_resp_auth(sb, &msg.hmsg_resp_auth)) {
         return false;
     }
 
+    /* get sides */
+    i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
+
     /* verify signature */
-    if(!crypto_verify_init(&s->rid)) {
+    if(!crypto_verify_init(&r->id)) {
         return false;
     }
     byte = (uint8_t)s->spn;
     crypto_verify_update(&byte, sizeof(byte));
-    crypto_verify_update(s->iid.data, sizeof(s->iid.data));
-    crypto_verify_update(s->rid.data, sizeof(s->rid.data));
-    crypto_verify_update(s->inonce.data, sizeof(s->inonce.data));
-    crypto_verify_update(s->rnonce.data, sizeof(s->rnonce.data));
+    crypto_verify_update(i->id.data, sizeof(i->id.data));
+    crypto_verify_update(r->id.data, sizeof(r->id.data));
+    crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
+    crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
     if(!crypto_verify_final(&msg.hmsg_resp_auth.sig.ecsig)) {
         return false;
     }
 
     /* set SPis */
-    memcpy(s->ispi.spidata, s->inonce.data + 2, sizeof(iasp_spi_t));
-    memcpy(s->rspi.spidata, s->rnonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
     /* generate shared secret */
     if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, NULL)) {
@@ -519,12 +538,17 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     binbuf_t saltbb;
     size_t keysize = crypto_get_key_size(pkey->spn);
     size_t gensize = 2*keysize + sizeof(iasp_salt_t);
+    iasp_session_side_data_t *i, *r;
 
     assert(gensize <= sizeof(buffer));
 
+    /* get sides */
+    i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
+
     /* prepare salt buffer */
-    memcpy(saltbuffer, s->ispi.spidata, sizeof(iasp_spi_t));
-    memcpy(saltbuffer + sizeof(iasp_spi_t), s->rspi.spidata, sizeof(iasp_spi_t));
+    memcpy(saltbuffer, i->spi.spidata, sizeof(iasp_spi_t));
+    memcpy(saltbuffer + sizeof(iasp_spi_t), r->spi.spidata, sizeof(iasp_spi_t));
     saltbb.buf = saltbuffer;
     saltbb.size = sizeof(saltbuffer);
 
@@ -534,13 +558,13 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     }
 
     /* distribute material */
-    memcpy(s->ikey.keydata, buffer, keysize);
-    memcpy(s->rkey.keydata, buffer + keysize, keysize);
+    memcpy(i->key.keydata, buffer, keysize);
+    memcpy(r->key.keydata, buffer + keysize, keysize);
     memcpy(s->salt.saltdata, buffer + 2*keysize, sizeof(iasp_salt_t));
 
     /* key information */
-    s->ikey.keysize = s->rkey.keysize = keysize;
-    s->ikey.spn = s->rkey.spn = pkey->spn;
+    i->key.keysize = r->key.keysize = keysize;
+    i->key.spn = r->key.spn = pkey->spn;
 
     return true;
 }

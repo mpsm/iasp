@@ -10,28 +10,30 @@
 
 
 typedef struct {
+    iasp_identity_t id;
+    iasp_nonce_t nonce;
+    iasp_key_t key;
+    iasp_spi_t spi;
+} iasp_session_side_data_t;
+
+
+typedef enum {
+    SESSION_SIDE_INITIATOR,
+    SESSION_SIDE_RESPONDER,
+
+    /* counter */
+    SESSION_SIDE_COUNT,
+} iasp_session_side_t;
+
+typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
     iasp_salt_t salt;
-
-    /* spn code */
     iasp_spn_code_t spn;
+    iasp_session_side_t side;
 
-    /* IDs */
-    iasp_identity_t iid;
-    iasp_identity_t rid;
-
-    /* NONCEs */
-    iasp_nonce_t rnonce;
-    iasp_nonce_t inonce;
-
-    /* keys */
-    iasp_key_t ikey;
-    iasp_key_t rkey;
-
-    /* SPIs */
-    iasp_spi_t ispi;
-    iasp_spi_t rspi;
+    /* negotiation sides data */
+    iasp_session_side_data_t sides[SESSION_SIDE_COUNT];
 
     /* auxiliary data, mode specific */
     void *aux;
