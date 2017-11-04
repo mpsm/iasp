@@ -10,10 +10,6 @@
 #include <stdarg.h>
 
 
-/* private methods */
-static void debug_print_binary(uint8_t *data, size_t size);
-
-
 void debug_log(const char *fmt, ...)
 {
     va_list va;
@@ -31,7 +27,7 @@ void debug_log(const char *fmt, ...)
 }
 
 
-static void debug_print_binary(uint8_t *data, size_t size)
+void debug_print_binary(const uint8_t *data, size_t size)
 {
     unsigned int i;
 
@@ -40,7 +36,7 @@ static void debug_print_binary(uint8_t *data, size_t size)
     }
 }
 
-void debug_print_nonce(iasp_nonce_t *nonce)
+void debug_print_nonce(const iasp_nonce_t *nonce)
 {
     printf("NONCE: ");
     debug_print_binary(nonce->data, sizeof(nonce->data));
@@ -48,7 +44,7 @@ void debug_print_nonce(iasp_nonce_t *nonce)
 
 
 
-void debug_print_spn(iasp_spn_code_t spn)
+void debug_print_spn(const iasp_spn_code_t spn)
 {
     static const char *spn_str[IASP_SPN_MAX] = {
             "none",
@@ -59,7 +55,7 @@ void debug_print_spn(iasp_spn_code_t spn)
     printf("SPN: %s", spn_str[spn]);
 }
 
-void debug_print_id(iasp_identity_t *id)
+void debug_print_id(const iasp_identity_t *id)
 {
     debug_print_spn(id->spn);
     printf(", ID: ");

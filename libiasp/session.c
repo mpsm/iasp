@@ -323,13 +323,14 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         iasp_nonce_t *rn = &s->sides[SESSION_SIDE_RESPONDER].nonce;
         crypto_gen_nonce(rn);
         memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
-        debug_print_nonce(rn);
     }
 
     /* allocate TP data for future use */
     if(role != IASP_ROLE_CD) {
-        iasp_tpdata_t *tpd = s->aux;
+        iasp_tpdata_t *tpd = NULL;
+
         iasp_tpdata_init(&tpd);
+        s->aux = tpd;
     }
 
     /* send responder hello */
@@ -361,7 +362,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     s->spn = msg.hmsg_resp_hello.id.spn;
 
     /* get my ID */
-    if(!crypto_get_id(s->spn, &r->id)) {
+    if(!crypto_get_id(s->spn, &i->id)) {
         return false;
     }
 
@@ -391,7 +392,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     reply = iasp_proto_get_payload_sb();
 
     if(role != IASP_ROLE_CD) {
-        iasp_tpdata_t *tpd;
+        iasp_tpdata_t *tpd = NULL;
 
         /* allocate TP data for future use */
         iasp_tpdata_init(&tpd);
@@ -400,6 +401,9 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
         /* set ephemeral key */
         msg.hmsg_init_auth.has_pkey = true;
         crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.pkey, &tpd->ecdhe_ctx);
+
+        /* add key to signature */
+        crypto_sign_update(msg.hmsg_init_auth.pkey.pkeydata, msg.hmsg_init_auth.pkey.pkeylen);
     }
 
     /* set nonces */
@@ -444,7 +448,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
-    /* verify signature */
+    /* prepare data for signature verification */
     if(!crypto_verify_init(&i->id)) {
         return false;
     }
@@ -454,9 +458,6 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->id.data, sizeof(r->id.data));
     crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
-    if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
-        return false;
-    }
 
     /* choose key for ECDHE */
     if(!msg.hmsg_init_auth.has_pkey) {
@@ -470,12 +471,15 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     else {
         pkey = &msg.hmsg_init_auth.pkey;
         debug_log("Using received ephemeral key for ECDHE\n");
+        crypto_verify_update(msg.hmsg_init_auth.pkey.pkeydata, msg.hmsg_init_auth.pkey.pkeylen);
     }
 
-    /* generate shared secret */
-    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+    /* verify signature */
+    if(!crypto_verify_final(&msg.hmsg_init_auth.sig)) {
+        debug_log("Peer's signature does not match!\n");
         return false;
     }
+    debug_log("Peer's signature match!\n");
 
     /* prepare reply */
     iasp_reset_message();
@@ -485,11 +489,14 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* generate ephemeral key */
     crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
 
+    /* generate shared secret */
+    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+        return false;
+    }
+
     /* set SPis */
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
-
-
 
     /* sign negotiation */
     msg.hmsg_resp_auth.has_hmac = false;
@@ -540,8 +547,10 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
     if(!crypto_verify_final(&msg.hmsg_resp_auth.sig.ecsig)) {
+        debug_log("Peer's signature does not match!\n");
         return false;
     }
+    debug_log("Peer's signature match!\n");
 
     /* set SPis */
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
@@ -581,6 +590,9 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     if(!crypto_ecdhe_compute_secret(pkey, ecdhe_ctx, buffer, gensize, &saltbb)) {
         return false;
     }
+    debug_log("Shared secret computed: ");
+    debug_print_binary(buffer, gensize);
+    debug_newline();
 
     /* distribute material */
     memcpy(i->key.keydata, buffer, keysize);

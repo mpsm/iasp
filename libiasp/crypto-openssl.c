@@ -484,6 +484,9 @@ bool crypto_sign_final(iasp_sig_t * const sig)
 
 bool crypto_sign_update(const unsigned char *b, size_t blen)
 {
+    debug_log("Adding data to sign: ");
+    debug_print_binary(b, blen);
+    debug_newline();
     return EVP_DigestSignUpdate(&sign_ctx, b, blen) != 0;
 }
 
@@ -577,6 +580,9 @@ const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id)
 
 bool crypto_verify_update(const unsigned char *b, size_t blen)
 {
+    debug_log("Adding data to sign verification: ");
+    debug_print_binary(b, blen);
+    debug_newline();
     return EVP_DigestVerifyUpdate(&sign_ctx, b, blen) != 0;
 }
 
@@ -652,10 +658,12 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
 
     /* determine private key */
     if(ecdhe_ctx == NULL || ecdhe_ctx->ctx == NULL) {
+        debug_log("Using own key for ECDHE\n");
         const iasp_spn_support_t *cs = crypto_get_supported_spn(pkey->spn);
         own_key = (EC_KEY *)cs->aux_data;
     }
     else {
+        debug_log("Using ephemeral key as own for ECDHE\n");
         own_key = (EC_KEY *)ecdhe_ctx->ctx;
     }
 
