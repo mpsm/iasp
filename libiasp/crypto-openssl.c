@@ -3,6 +3,7 @@
 #include "binbuf.h"
 #include "types.h"
 #include "config.h"
+#include "debug.h"
 
 #include <openssl/bn.h>
 #include <openssl/ec.h>
@@ -190,7 +191,7 @@ static iasp_spn_code_t crypto_match_spn(EC_KEY *key)
 bool crypto_add_key(binbuf_t * const pkey)
 {
     const EC_GROUP *group;
-    const EC_POINT *pubkey;
+    //const EC_POINT *pubkey;
     EC_KEY *key = NULL;
     int group_nid;
     iasp_spn_support_t *cs = spn;
@@ -209,7 +210,7 @@ bool crypto_add_key(binbuf_t * const pkey)
     /* extract curve nid */
     group = EC_KEY_get0_group(key);
     group_nid = EC_GROUP_get_curve_name(group);
-    printf("Curve: %s (%d)\n",  OBJ_nid2ln(group_nid), group_nid);
+    //printf("Curve: %s (%d)\n",  OBJ_nid2ln(group_nid), group_nid);
 
     /* check if curve is used by known profile */
     new_spn = crypto_match_spn(key);
@@ -218,7 +219,7 @@ bool crypto_add_key(binbuf_t * const pkey)
             return false;
     }
 
-    printf("Matched SPN profile: %u\n", (unsigned int)new_spn);
+    debug_log("Matched SPN profile: %u\n", (unsigned int)new_spn);
 
     /* find out if SPN is already supported */
     while(cs != NULL) {
@@ -235,9 +236,9 @@ bool crypto_add_key(binbuf_t * const pkey)
     }
 
     /* print new key */
-    pubkey = EC_KEY_get0_public_key(key);
-    printf("Public key (compressed):   %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_COMPRESSED, NULL));
-    printf("Public key (uncompressed): %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL));
+    //pubkey = EC_KEY_get0_public_key(key);
+    //printf("Public key (compressed):   %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_COMPRESSED, NULL));
+    //printf("Public key (uncompressed): %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL));
 
     /* allocate new crypto support structure */
     new_cs = malloc(sizeof(iasp_spn_support_t));

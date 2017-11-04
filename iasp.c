@@ -21,6 +21,7 @@
 #include "libiasp/network.h"
 #include "libiasp/types.h"
 #include "libiasp/session.h"
+#include "libiasp/debug.h"
 
 
 /* error codes */
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
             }
 
             /* read key from specified file */
-            printf("Reding key file: %s\n", keyfile);
+            debug_log("Reding key file: %s\n", keyfile);
             if(!add_key(keyfile)) {
                 fprintf(stderr, "Error reading key file: %s\n", keyfile);
                 goto exit;
@@ -170,7 +171,7 @@ int main(int argc, char *argv[])
                 }
 
                 /* read key from specified file */
-                printf("Reding public key file: %s\n", keyfile);
+                debug_log("Reding public key file: %s\n", keyfile);
                 if(!read_public_key(keyfile, &public_keys.keys[i].pubkey, &public_keys.keys[i].id)) {
                     fprintf(stderr, "Error reading key file: %s\n", keyfile);
                     goto exit;
@@ -196,7 +197,7 @@ int main(int argc, char *argv[])
         }
 
         /* set network address */
-        printf("Network: binding address %s:%d\n", ip, IASP_DEFAULT_PORT);
+        debug_log("Network: binding address %s:%d\n", ip, IASP_DEFAULT_PORT);
         if(!iasp_network_add_address_str(&myaddr, ip, IASP_DEFAULT_PORT)) {
             fprintf(stderr, "Cannot assign specified address: %s\n", ip);
             perror("network");
@@ -206,20 +207,15 @@ int main(int argc, char *argv[])
 
     /* print supported profiles */
     {
-        const iasp_spn_support_t* spns;
         unsigned int i;
+        iasp_ids_t ids;
 
-        printf("Supported profiles:\n");
-
-        spns = crypto_get_supported_spns();
-        while(spns != NULL) {
-            printf("SPN=%d, ID: ", spns->id.spn);
-            for(i = 0; i < IASP_CONFIG_IDENTITY_SIZE; ++i) {
-                printf("%02x", spns->id.data[i]);
-            }
-            printf("\n");
-            spns = spns->next;
+        crypto_get_ids(&ids);
+        debug_log("Supported %d profiles\n", ids.id_count);
+        for(i = 0; i < ids.id_count; ++i) {
+            debug_print_id(&ids.id[i]); debug_newline();
         }
+
     }
 
     /* run mode handler */
@@ -326,7 +322,7 @@ static int main_cd(const modecontext_t *ctx)
             goto exit;
         }
 
-        printf("CD: Trust Point address: %s\n", tpaddress_str);
+        debug_log("CD: Trust Point address: %s\n", tpaddress_str);
     }
 
     {

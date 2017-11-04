@@ -1,0 +1,75 @@
+#if defined(IASP_DEBUG) && IASP_DEBUG == 1
+
+#include "debug.h"
+#include "types.h"
+
+#include <time.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <stdarg.h>
+
+
+/* private methods */
+static void debug_print_binary(uint8_t *data, size_t size);
+
+
+void debug_log(const char *fmt, ...)
+{
+    va_list va;
+    time_t ltime;
+    struct tm *ltime_tm;
+
+    time(&ltime);
+    ltime_tm = localtime(&ltime);
+
+    printf("[%.*s] ", 15, asctime(ltime_tm) + 4);
+
+    va_start(va, fmt);
+    vprintf(fmt, va);
+    va_end(va);
+}
+
+
+static void debug_print_binary(uint8_t *data, size_t size)
+{
+    unsigned int i;
+
+    for(i = 0; i < size; ++i) {
+        printf("%02x", data[i]);
+    }
+}
+
+void debug_print_nonce(iasp_nonce_t *nonce)
+{
+    printf("NONCE: ");
+    debug_print_binary(nonce->data, sizeof(nonce->data));
+}
+
+
+
+void debug_print_spn(iasp_spn_code_t spn)
+{
+    static const char *spn_str[IASP_SPN_MAX] = {
+            "none",
+            "SPN 1 / 128 bits",
+            "SPN 2 / 256 bits",
+    };
+
+    printf("SPN: %s", spn_str[spn]);
+}
+
+void debug_print_id(iasp_identity_t *id)
+{
+    debug_print_spn(id->spn);
+    printf(", ID: ");
+    debug_print_binary(id->data, sizeof(id->data));
+}
+
+
+void debug_newline(void)
+{
+    printf("\n");
+}
+
+#endif

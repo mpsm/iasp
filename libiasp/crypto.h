@@ -30,7 +30,6 @@ void crypto_free(void);
 
 iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
 bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id);
-const iasp_spn_support_t* crypto_get_supported_spns(void);
 void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 
 /* public keys */
