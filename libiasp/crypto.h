@@ -19,6 +19,7 @@ typedef struct {
 
 typedef struct{
     void *ctx;
+    iasp_spn_code_t spn;
 } crypto_ecdhe_context_t;
 
 
@@ -52,6 +53,7 @@ bool crypto_verify_final(const iasp_sig_t * const sig);
 bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx);
 bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx,
         uint8_t *secret, size_t secretlen, const binbuf_t * const salt);
+bool crypto_ecdhe_pkey(const crypto_ecdhe_context_t *ecdhe_ctx, iasp_pkey_t * const pkey);
 
 /* symmetric crypto */
 size_t crypto_get_key_size(iasp_spn_code_t spn);

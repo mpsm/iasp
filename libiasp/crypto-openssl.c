@@ -617,15 +617,16 @@ bool crypto_verify_final(const iasp_sig_t * const sig)
 bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx)
 {
     EC_KEY *eckey;
-    size_t pubkeylen;
-    unsigned char *pubkeybuf;
 
+    /* generate ephemeral key */
     eckey = EC_KEY_new_by_curve_name(spn_map[spn_code].nid_ec);
     assert(eckey != NULL);
-
     if(EC_KEY_generate_key(eckey) != 1) {
         return false;
     }
+
+    /* save used SPN */
+    ecdhe_ctx->spn = spn_code;
 
     /* store private key */
     if(ecdhe_ctx != NULL) {
@@ -633,10 +634,32 @@ bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecd
     }
 
     /* store public key */
-    pkey->spn = spn_code;
-    pubkeylen = spn_map[spn_code].eclen + 1;
+    if(pkey != NULL) {
+        if(!crypto_ecdhe_pkey(ecdhe_ctx, pkey)) {
+            abort();
+        }
+    }
+    return true;
+}
+
+
+bool crypto_ecdhe_pkey(const crypto_ecdhe_context_t *ecdhe_ctx, iasp_pkey_t * const pkey)
+{
+    size_t pubkeylen;
+    unsigned char *pubkeybuf;
+
+    assert(ecdhe_ctx != NULL);
+    assert(ecdhe_ctx->ctx != NULL);
+
+    /* setup SPN */
+    pkey->spn = ecdhe_ctx->spn;
+
+    /* extract key from EC_KEY */
+    pubkeylen = spn_map[ecdhe_ctx->spn].eclen + 1;
     pubkeybuf = pkey->pkeydata;
-    crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &pubkeybuf, &pubkeylen);
+    if(!crypto_get_public_key((EC_KEY *)ecdhe_ctx->ctx, POINT_CONVERSION_COMPRESSED, &pubkeybuf, &pubkeylen)) {
+        return false;
+    }
     pkey->pkeylen = pubkeylen;
 
     return true;
@@ -668,6 +691,9 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
     }
 
     /* setup public key */
+    debug_log("Using public key for ECDHE: ");
+    debug_print_pkey(pkey);
+    debug_newline();
     group = EC_GROUP_new_by_curve_name(spn_map[pkey->spn].nid_ec);
     ecpoint = EC_POINT_new(group);
     if(EC_POINT_oct2point(group, ecpoint, pkey->pkeydata, pkey->pkeylen, NULL) == 0) {

@@ -17,6 +17,7 @@ void debug_print_binary(const uint8_t *data, size_t size);
 void debug_newline(void);
 void debug_print_nonce(const iasp_nonce_t *nonce);
 void debug_print_id(const iasp_identity_t *id);
+void debug_print_pkey(const iasp_pkey_t *pkey);
 
 
 #elif IASP_DEBUG == 0
@@ -26,6 +27,7 @@ void debug_print_id(const iasp_identity_t *id);
 #  define debug_newline()       {}
 #  define debug_print_nonce(X)  {}
 #  define debug_print_id(X)     {}
+#  define debug_print_pkey(X)   {}
 
 #else
 #  error "Invalid IASP_DEBUG value"

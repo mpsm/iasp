@@ -52,7 +52,7 @@ void debug_print_spn(const iasp_spn_code_t spn)
             "SPN 2 / 256 bits",
     };
 
-    printf("SPN: %s", spn_str[spn]);
+    printf("%s", spn_str[spn]);
 }
 
 void debug_print_id(const iasp_identity_t *id)
@@ -66,6 +66,14 @@ void debug_print_id(const iasp_identity_t *id)
 void debug_newline(void)
 {
     printf("\n");
+}
+
+
+void debug_print_pkey(const iasp_pkey_t *pkey)
+{
+    debug_print_spn(pkey->spn);
+    printf(" | %lu bytes | ", pkey->pkeylen);
+    debug_print_binary(pkey->pkeydata, pkey->pkeylen);
 }
 
 #endif

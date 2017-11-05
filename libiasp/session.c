@@ -448,6 +448,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* set SPis */
+    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+
     /* prepare data for signature verification */
     if(!crypto_verify_init(&i->id)) {
         return false;
@@ -481,21 +485,22 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     }
     debug_log("Peer's signature match!\n");
 
+    /* generate ephemeral key */
+    crypto_ecdhe_genkey(s->spn, NULL, &tpd->ecdhe_ctx);
+
+    /* generate shared secret */
+    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+        return false;
+    }
+
     /* prepare reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
 
-    /* generate ephemeral key */
-    crypto_ecdhe_genkey(s->spn, &msg.hmsg_resp_auth.pkey, &tpd->ecdhe_ctx);
-
-    /* set SPis */
-    memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
-    memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
-
-    /* generate shared secret */
-    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
-        return false;
+    /* extract public part of ephemeral key */
+    if(!crypto_ecdhe_pkey(&tpd->ecdhe_ctx, &msg.hmsg_resp_auth.pkey)) {
+        abort();
     }
 
     /* sign negotiation */
