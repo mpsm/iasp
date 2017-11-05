@@ -530,6 +530,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
 {
     uint8_t byte;
     iasp_session_side_data_t *i, *r;
+    crypto_ecdhe_context_t *ecdhe_ctx = NULL;
 
     /* decode message */
     if(!iasp_decode_hmsg_resp_auth(sb, &msg.hmsg_resp_auth)) {
@@ -561,8 +562,14 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
+    /* get ephemeral key if possible */
+    if(role != IASP_ROLE_CD) {
+        iasp_tpdata_t *tpd = s->aux;
+        ecdhe_ctx = &tpd->ecdhe_ctx;
+    }
+
     /* generate shared secret */
-    if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, NULL)) {
+    if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, ecdhe_ctx)) {
         return false;
     }
 
