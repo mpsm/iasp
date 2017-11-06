@@ -448,7 +448,7 @@ bool crypto_sign_update_bb(const binbuf_t * const bb)
 }
 
 
-bool crypto_sign_final(iasp_sig_t * const sig)
+bool crypto_sign_final(iasp_ecsig_t * const sig)
 {
     size_t siglen;
     static unsigned char *sigbuf;
@@ -587,7 +587,7 @@ bool crypto_verify_update(const unsigned char *b, size_t blen)
 }
 
 
-bool crypto_verify_final(const iasp_sig_t * const sig)
+bool crypto_verify_final(const iasp_ecsig_t * const sig)
 {
     ECDSA_SIG* ecdsa;
     size_t dlen;

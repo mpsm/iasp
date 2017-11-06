@@ -7,6 +7,7 @@
 #include "types.h"
 #include "tp.h"
 #include "debug.h"
+#include "trust.h"
 
 #include <assert.h>
 #include <stdbool.h>

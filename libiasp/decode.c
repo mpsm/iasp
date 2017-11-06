@@ -228,7 +228,7 @@ bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce)
 }
 
 
-bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
+bool iasp_decode_sig(streambuf_t *sb, iasp_ecsig_t * const sig)
 {
     /* check field id */
     if(!iasp_decode_check_field_code(sb, IASP_FIELD_SIG)) {

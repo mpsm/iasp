@@ -16,6 +16,15 @@
 #include <string.h>
 
 
+/* address - socket map */
+#define NETWORK_MAX_ADDRESS_COUNT (4)
+struct {
+    int s;
+    const iasp_address_t *address;
+} address_map[NETWORK_MAX_ADDRESS_COUNT];
+unsigned int address_count = 0;
+
+
 /* auxiliary network structure */
 struct posix_net_aux {
     int s;
@@ -23,8 +32,13 @@ struct posix_net_aux {
 };
 
 
+/* private methods */
+//static bool network_rebuild_set(fd_set *set);
+
+
 /* private data */
 static struct posix_net_aux read_aux;
+fd_set s;
 
 
 #define AUX(x) ((struct posix_net_aux *)x->aux)
@@ -106,6 +120,11 @@ bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const 
 {
     struct posix_net_aux *aux;
 
+    /* check address count */
+    if(address_count == NETWORK_MAX_ADDRESS_COUNT) {
+        return false;
+    }
+
     /* init address */
     iasp_network_address_init(address, ip, port);
     aux = AUX(address);
@@ -121,6 +140,11 @@ bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const 
         iasp_network_address_destroy(address);
         return false;
     }
+
+    /* add address to map */
+    address_map[address_count].address = address;
+    address_map[address_count].s = aux->s;
+    address_count++;
 
     return true;
 }
@@ -303,3 +327,24 @@ void iasp_network_address_dup(const iasp_address_t * const address, iasp_address
     memcpy(new_aux, aux, sizeof(struct posix_net_aux));
     new->aux = new_aux;
 }
+
+
+#if 0
+static bool network_rebuild_set(fd_set *set)
+{
+    unsigned int i;
+
+    assert(set != NULL);
+
+    if(address_count == 0) {
+        return false;
+    }
+
+    FD_ZERO(set);
+    for(i = 0; i < address_count; ++i) {
+        FD_SET(address_map[i].s, set);
+    }
+
+    return true;
+}
+#endif

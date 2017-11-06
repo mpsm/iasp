@@ -42,12 +42,12 @@ size_t crypto_get_sign_length(iasp_spn_code_t spn_code);
 bool crypto_sign_init(iasp_spn_code_t spn_code);
 bool crypto_sign_update(const unsigned char *b, size_t blen);
 bool crypto_sign_update_bb(const binbuf_t * const bb);
-bool crypto_sign_final(iasp_sig_t * const sig);
+bool crypto_sign_final(iasp_ecsig_t * const sig);
 
 /* sign verify */
 bool crypto_verify_init(const iasp_identity_t * const id);
 bool crypto_verify_update(const unsigned char *b, size_t blen);
-bool crypto_verify_final(const iasp_sig_t * const sig);
+bool crypto_verify_final(const iasp_ecsig_t * const sig);
 
 /* ECDHE */
 bool crypto_ecdhe_genkey(iasp_spn_code_t spn_code, iasp_pkey_t *pkey, crypto_ecdhe_context_t *ecdhe_ctx);
