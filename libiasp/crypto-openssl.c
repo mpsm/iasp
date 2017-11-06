@@ -45,7 +45,7 @@ static const crypto_context_t spn_map[] = {
 /* private variables */
 iasp_spn_support_t *spn = NULL;
 const crypto_public_keys_t *public_keys = NULL;
-
+const binbuf_t * oob = NULL;
 
 /* sign and verify context */
 static EVP_MD_CTX sign_ctx;
@@ -803,3 +803,8 @@ size_t crypto_get_key_size(iasp_spn_code_t spn)
     return spn_map[spn].keysize;
 }
 
+
+void crypto_set_oob_key(const binbuf_t * const bb)
+{
+    oob = bb;
+}

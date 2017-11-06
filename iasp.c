@@ -70,7 +70,7 @@ static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_ident
 
 /* crypto context */
 static crypto_public_keys_t public_keys;
-
+static binbuf_t oob;
 
 int main(int argc, char *argv[])
 {
@@ -180,6 +180,21 @@ int main(int argc, char *argv[])
 
             /* set public keys data */
             crypto_set_pubkeys(&public_keys);
+
+            /* read OOB key */
+            if((keys = config_lookup(&cfg, "crypto.oob_key")) != NULL) {
+                const char *filename = config_setting_get_string(keys);
+
+                /* read key from file */
+                debug_log("Reading OOB key: %s\n", filename);
+                if(!read_file(filename, &oob)) {
+                    fprintf(stderr, "Error reading OOB key file\n");
+                    goto exit;
+                }
+
+                /* set key */
+                crypto_set_oob_key(&oob);
+            }
         }
         else {
             fprintf(stderr, "Crypto: warning - no public keys specified.\n");

@@ -58,5 +58,8 @@ bool crypto_ecdhe_pkey(const crypto_ecdhe_context_t *ecdhe_ctx, iasp_pkey_t * co
 /* symmetric crypto */
 size_t crypto_get_key_size(iasp_spn_code_t spn);
 
+/* OOB key authentication */
+void crypto_set_oob_key(const binbuf_t * const bb);
+
 
 #endif
