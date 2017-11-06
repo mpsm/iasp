@@ -22,6 +22,7 @@
 #include "libiasp/types.h"
 #include "libiasp/session.h"
 #include "libiasp/debug.h"
+#include "libiasp/trust.h"
 
 
 /* error codes */
@@ -313,11 +314,48 @@ static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_ident
 }
 
 
-#define CDBUFSIZE
+#include <arpa/inet.h>
+#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+#define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
+{
+    const config_setting_t *tpid;
+    uint64_t id64;
+
+    tpid = config_lookup(cfg, "cd.trusted_tp");
+    if(tpid == NULL) {
+        return false;
+    }
+
+    /* check list count */
+    if(config_setting_length(tpid) != 2) {
+        goto invalid_setting;
+    }
+
+    /* get SPN */
+    id->spn = config_setting_get_int_elem(tpid, 0);
+
+    /* get ID data */
+    id64 = config_setting_get_int64_elem(tpid, 1);
+    *(uint64_t *)id->data = htonll(id64);
+
+    goto ok;
+
+invalid_setting:
+    fprintf(stderr, "Invalid trusted_tp setting.\n");
+    return false;
+
+ok:
+    return true;
+}
+
+
+
 static int main_cd(const modecontext_t *ctx)
 {
     iasp_address_t tpaddr = {NULL};
     int ret = ERROR_RUNTIME;
+    iasp_identity_t tpid;
 
     printf("\nExecuting CD mode.\n\n");
 
@@ -338,6 +376,16 @@ static int main_cd(const modecontext_t *ctx)
         }
 
         debug_log("CD: Trust Point address: %s\n", tpaddress_str);
+    }
+
+    /* set trusted TP */
+    {
+        if(cd_get_tpid(ctx->cfg, &tpid)) {
+            debug_log("Setting trusted TP ID: ");
+            debug_print_id(&tpid);
+            debug_newline();
+            iasp_trust_set_tp(&tpid);
+        }
     }
 
     {
