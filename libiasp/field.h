@@ -26,6 +26,7 @@ typedef enum {
     IASP_FIELD_HINT = 14,
     IASP_FIELD_SPI = 15,
     IASP_FIELD_KEY = 16,
+    IASP_FIELD_SIGTYPE = 17,
     IASP_FIELD_SETOF = 127,
 } iasp_field_code_t;
 

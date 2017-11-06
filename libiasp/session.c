@@ -346,6 +346,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     uint8_t byte;
     streambuf_t *reply;
     iasp_session_side_data_t *i, *r;
+    iasp_sigtype_t sigtype;
 
     /* mark session side */
     s->side = SESSION_SIDE_INITIATOR;
@@ -376,6 +377,16 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     /* generate NONCE */
     crypto_gen_nonce(&i->nonce);
 
+    /* determine desired authentication method */
+    if(!iasp_trust_is_trusted(&r->id)) {
+        debug_log("Peer is untrusted - requesting HMAC authentication.\n");
+        sigtype = IASP_SIG_HMAC;
+    }
+    else {
+        debug_log("Peer is trusted.\n");
+        sigtype = IASP_SIG_EC;
+    }
+
     /* signing */
     if(!crypto_sign_init(s->spn)) {
         abort();
@@ -386,6 +397,8 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     crypto_sign_update(r->id.data, sizeof(r->id.data));
     crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
+    byte = (uint8_t)sigtype;
+    crypto_sign_update(&byte, sizeof(byte));
 
     /* prepare response */
     iasp_reset_message();
@@ -416,6 +429,9 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
         abort();
     }
 
+    /* set desired auth type */
+    msg.hmsg_init_auth.req_sigtype = sigtype;
+
     /* encode reply */
     if(!iasp_encode_hmsg_init_auth(reply, &msg.hmsg_init_auth)) {
        abort();
@@ -433,6 +449,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     iasp_tpdata_t *tpd = (iasp_tpdata_t *)s->aux;
     const iasp_pkey_t *pkey;
     iasp_session_side_data_t *i, *r;
+    iasp_sigtype_t sigtype;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
@@ -453,6 +470,19 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
+    /* save required signature type */
+    sigtype = msg.hmsg_init_auth.req_sigtype;
+    switch(sigtype) {
+        case IASP_SIG_EC:
+            debug_log("Performing EC signature.\n");
+            break;
+        case IASP_SIG_HMAC:
+            debug_log("Performing HMAC authentication using OOB key.\n");
+            break;
+        default:
+            abort();
+    }
+
     /* prepare data for signature verification */
     if(!crypto_verify_init(&i->id)) {
         return false;
@@ -463,6 +493,8 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->id.data, sizeof(r->id.data));
     crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
+    byte = (uint8_t)sigtype;
+    crypto_verify_update(&byte, sizeof(byte));
 
     /* choose key for ECDHE */
     if(!msg.hmsg_init_auth.has_pkey) {
@@ -509,6 +541,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     if(!crypto_sign_init(s->spn)) {
         abort();
     }
+    byte = s->spn;
     crypto_sign_update(&byte, sizeof(byte));
     crypto_sign_update(i->id.data, sizeof(i->id.data));
     crypto_sign_update(r->id.data, sizeof(r->id.data));

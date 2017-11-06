@@ -28,6 +28,15 @@ typedef enum {
 } iasp_spn_code_t;
 
 
+typedef enum {
+    IASP_SIG_EC,
+    IASP_SIG_HMAC,
+
+    /* sentinel */
+    IASP_SIG_MAX,
+} iasp_sigtype_t;
+
+
 typedef struct {
     iasp_spn_code_t spn;
     uint8_t data[IASP_CONFIG_IDENTITY_SIZE];

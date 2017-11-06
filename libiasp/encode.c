@@ -134,7 +134,8 @@ bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * c
     if(!iasp_encode_varint(sb, IASP_HMSG_INIT_AUTH) ||
             !iasp_encode_nonce(sb, &msg->inonce) ||
             !iasp_encode_nonce(sb, &msg->rnonce) ||
-            !iasp_encode_sig(sb, &msg->sig)) {
+            !iasp_encode_sig(sb, &msg->sig) ||
+            !iasp_encode_sigtype(sb, msg->req_sigtype, false)) {
         return false;
     }
 
@@ -168,4 +169,18 @@ bool iasp_encode_pkey(streambuf_t *sb, const iasp_pkey_t *pkey)
     return iasp_encode_field_code(sb, IASP_FIELD_PKEY) &&
             iasp_encode_spn(sb, pkey->spn, true) &&
             streambuf_write(sb, pkey->pkeydata, pkey->pkeylen);
+}
+
+
+bool iasp_encode_sigtype(streambuf_t *sb, iasp_sigtype_t sigtype, bool raw)
+{
+    /* encode field code */
+    if(!raw) {
+        if(!iasp_encode_field_code(sb, IASP_FIELD_SIGTYPE)) {
+            return false;
+        }
+    }
+
+    /* encode enumeration value */
+    return iasp_encode_varint(sb, (unsigned int)sigtype);
 }

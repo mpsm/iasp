@@ -276,9 +276,11 @@ bool iasp_decode_pkey(streambuf_t *sb, iasp_pkey_t * const pkey)
 
 bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg)
 {
+    /* decode required fields */
     if(!iasp_decode_nonce(sb, &msg->inonce) ||
             !iasp_decode_nonce(sb, &msg->rnonce) ||
-            !iasp_decode_sig(sb, &msg->sig)) {
+            !iasp_decode_sig(sb, &msg->sig) ||
+            !iasp_decode_sigtype(sb, &msg->req_sigtype)) {
         return false;
     }
 
@@ -302,4 +304,30 @@ bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const m
 {
     return iasp_decode_pkey(sb, &msg->pkey) &&
             iasp_decode_sig(sb, &msg->sig.ecsig);
+}
+
+
+bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype)
+{
+    unsigned int i;
+
+    /* check field code */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_SIGTYPE)) {
+        return false;
+    }
+
+    /* get enumeration */
+    if(!iasp_decode_varint(sb, &i)) {
+        return false;
+    }
+
+    /* check enumeration value */
+    if(i >= IASP_SIG_MAX) {
+        return false;
+    }
+
+    /* set value */
+    *sigtype = (iasp_sigtype_t)i;
+
+    return true;
 }

@@ -25,14 +25,8 @@ typedef struct {
 } iasp_hmsg_resp_hello_t;
 
 
-typedef enum {
-    IASP_SIG_EC,
-    IASP_SIG_HMAC,
-} iasp_sig_type_t;
-
-
 typedef struct {
-    iasp_sig_type_t sigtype;
+    iasp_sigtype_t sigtype;
     union {
         iasp_ecsig_t ecsig;
         iasp_hmac_t hmac;
@@ -41,11 +35,12 @@ typedef struct {
 
 
 typedef struct {
-    iasp_nonce_t inonce;
-    iasp_nonce_t rnonce;
-    iasp_ecsig_t sig;
-    bool         has_pkey;
-    iasp_pkey_t  pkey;
+    iasp_nonce_t    inonce;
+    iasp_nonce_t    rnonce;
+    iasp_ecsig_t    sig;
+    iasp_sigtype_t  req_sigtype;
+    bool            has_pkey;
+    iasp_pkey_t     pkey;
 } iasp_hmsg_init_auth_t;
 
 
