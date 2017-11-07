@@ -53,6 +53,7 @@ static EVP_MD_CTX sign_ctx;
 static iasp_spn_code_t sign_spn;
 static EVP_PKEY sign_pkey;
 static ASN1_OCTET_STRING sign_key;
+static iasp_sigtype_t sign_type;
 
 
 /* private methods */
@@ -463,6 +464,7 @@ bool crypto_sign_init(iasp_spn_code_t spn_code, iasp_sigtype_t sigtype)
         default:
             abort();
     }
+    sign_type = sigtype;
 
     /* init sign context */
     EVP_DigestSignInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
@@ -477,7 +479,7 @@ bool crypto_sign_update_bb(const binbuf_t * const bb)
 }
 
 
-bool crypto_sign_final(iasp_ecsig_t * const sig)
+bool crypto_sign_final(iasp_sig_t * const sig)
 {
     size_t siglen;
     static unsigned char *sigbuf;
@@ -504,6 +506,7 @@ bool crypto_sign_final(iasp_ecsig_t * const sig)
     BN_bn2bin(ecdsa->s, sig->sigdata + (2*dlen - BN_num_bytes(ecdsa->s)));
     sig->spn = sign_spn;
     sig->siglen = dlen * 2;
+    sig->sigtype = sign_type;
 
     free(sigbuf);
 
@@ -563,6 +566,7 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
     const iasp_pkey_t *pkeybin;
 
     assert(id != NULL);
+    assert(sign_type == sigtype);
 
     /* get md for profile */
     md = EVP_get_digestbynid(spn_map[id->spn].nid_dgst);
@@ -603,8 +607,6 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
             abort();
     }
 
-
-
     /* init md context */
     EVP_MD_CTX_init(&sign_ctx);
 
@@ -643,7 +645,7 @@ bool crypto_verify_update(const unsigned char *b, size_t blen)
 }
 
 
-bool crypto_verify_final(const iasp_ecsig_t * const sig)
+bool crypto_verify_final(const iasp_sig_t * const sig)
 {
     ECDSA_SIG* ecdsa;
     size_t dlen;

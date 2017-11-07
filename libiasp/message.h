@@ -26,18 +26,9 @@ typedef struct {
 
 
 typedef struct {
-    iasp_sigtype_t sigtype;
-    union {
-        iasp_ecsig_t ecsig;
-        iasp_hmac_t hmac;
-    };
-} iasp_sig_t;
-
-
-typedef struct {
     iasp_nonce_t    inonce;
     iasp_nonce_t    rnonce;
-    iasp_ecsig_t    sig;
+    iasp_sig_t      sig;
     iasp_sigtype_t  req_sigtype;
     bool            has_pkey;
     iasp_pkey_t     pkey;
@@ -59,7 +50,7 @@ typedef struct {
 
 
 typedef struct {
-    iasp_ecsig_t sig;
+    iasp_sig_t sig;
 } iasp_hmsg_session_auth_t;
 
 

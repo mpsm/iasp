@@ -549,7 +549,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
-    crypto_sign_final(&msg.hmsg_resp_auth.sig.ecsig);
+    crypto_sign_final(&msg.hmsg_resp_auth.sig);
 
     /* encode reply */
     if(!iasp_encode_hmsg_resp_auth(reply, &msg.hmsg_resp_auth)) {
@@ -587,7 +587,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
-    if(!crypto_verify_final(&msg.hmsg_resp_auth.sig.ecsig)) {
+    if(!crypto_verify_final(&msg.hmsg_resp_auth.sig)) {
         debug_log("Peer's signature does not match!\n");
         return false;
     }

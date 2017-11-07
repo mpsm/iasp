@@ -63,15 +63,10 @@ typedef struct {
 
 typedef struct {
     iasp_spn_code_t spn;
+    iasp_sigtype_t sigtype;
     size_t siglen;
     uint8_t sigdata[IASP_CONFIG_MAX_SIG_SIZE];
-} iasp_ecsig_t;
-
-
-typedef struct {
-    iasp_spn_code_t spn;
-    uint8_t sigdata[IASP_CONFIG_MAX_HMAC_SIZE];
-} iasp_hmac_t;
+} iasp_sig_t;
 
 
 typedef struct {

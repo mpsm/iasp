@@ -152,14 +152,15 @@ bool iasp_encode_hmsg_resp_auth(streambuf_t *sb, const iasp_hmsg_resp_auth_t * c
 {
     return iasp_encode_varint(sb, IASP_HMSG_RESP_AUTH) &&
             iasp_encode_pkey(sb, &msg->pkey) &&
-            iasp_encode_sig(sb, &msg->sig.ecsig);
+            iasp_encode_sig(sb, &msg->sig);
 }
 
 
-bool iasp_encode_sig(streambuf_t *sb, const iasp_ecsig_t *sig)
+bool iasp_encode_sig(streambuf_t *sb, const iasp_sig_t *sig)
 {
     return iasp_encode_field_code(sb, IASP_FIELD_SIG) &&
             iasp_encode_spn(sb, sig->spn, true) &&
+            iasp_encode_sigtype(sb, sig->sigtype, true) &&
             streambuf_write(sb, sig->sigdata, sig->siglen);
 }
 

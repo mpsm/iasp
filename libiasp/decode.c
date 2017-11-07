@@ -228,7 +228,7 @@ bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce)
 }
 
 
-bool iasp_decode_sig(streambuf_t *sb, iasp_ecsig_t * const sig)
+bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
 {
     /* check field id */
     if(!iasp_decode_check_field_code(sb, IASP_FIELD_SIG)) {
@@ -237,6 +237,11 @@ bool iasp_decode_sig(streambuf_t *sb, iasp_ecsig_t * const sig)
 
     /* decode spn */
     if(!iasp_decode_spn(sb, &sig->spn)) {
+        return false;
+    }
+
+    /* decode sigtype */
+    if(!iasp_decode_sigtype(sb, &sig->sigtype, true)) {
         return false;
     }
 
@@ -280,7 +285,7 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
     if(!iasp_decode_nonce(sb, &msg->inonce) ||
             !iasp_decode_nonce(sb, &msg->rnonce) ||
             !iasp_decode_sig(sb, &msg->sig) ||
-            !iasp_decode_sigtype(sb, &msg->req_sigtype)) {
+            !iasp_decode_sigtype(sb, &msg->req_sigtype, false)) {
         return false;
     }
 
@@ -303,16 +308,16 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
 bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const msg)
 {
     return iasp_decode_pkey(sb, &msg->pkey) &&
-            iasp_decode_sig(sb, &msg->sig.ecsig);
+            iasp_decode_sig(sb, &msg->sig);
 }
 
 
-bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype)
+bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype, bool raw)
 {
     unsigned int i;
 
     /* check field code */
-    if(!iasp_decode_check_field_code(sb, IASP_FIELD_SIGTYPE)) {
+    if(!raw && !iasp_decode_check_field_code(sb, IASP_FIELD_SIGTYPE)) {
         return false;
     }
 
