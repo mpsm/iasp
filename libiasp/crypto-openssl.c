@@ -633,6 +633,9 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
     /* init md context */
     EVP_MD_CTX_init(&sign_ctx);
 
+    /* init digest */
+    EVP_DigestInit_ex(&sign_ctx, md, NULL);
+
     /* init verify */
     EVP_DigestVerifyInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
     sign_spn = id->spn;
