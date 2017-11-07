@@ -22,12 +22,12 @@ void debug_print_pkey(const iasp_pkey_t *pkey);
 
 #elif IASP_DEBUG == 0
 
-#  define debug_log(X, ...)     {}
-#  define debug_print_binary()  {}
-#  define debug_newline()       {}
-#  define debug_print_nonce(X)  {}
-#  define debug_print_id(X)     {}
-#  define debug_print_pkey(X)   {}
+#  define debug_log(X, ...)         {}
+#  define debug_print_binary(X,Y)   {}
+#  define debug_newline()           {}
+#  define debug_print_nonce(X)      {}
+#  define debug_print_id(X)         {}
+#  define debug_print_pkey(X)       {}
 
 #else
 #  error "Invalid IASP_DEBUG value"
