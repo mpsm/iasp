@@ -27,6 +27,7 @@ typedef struct {
     iasp_spn_code_t spn_code;
     int nid_ec;
     unsigned int eclen;
+    unsigned int dlen;
     int nid_dgst;
     size_t keysize;
     void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
@@ -36,10 +37,10 @@ static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen, c
 static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 
 static const crypto_context_t spn_map[] = {
-        {IASP_SPN_NONE, 0, 0, 0, 0, NULL},
-        {IASP_SPN_128, NID_X9_62_prime256v1, 32, NID_sha256, 16, kdf_spn1},
-        {IASP_SPN_256, NID_secp521r1, 66, NID_sha512, 32, kdf_spn2},
-        {IASP_SPN_MAX, 0, 0, 0, 0, NULL},
+        {IASP_SPN_NONE, 0, 0, 0, 0, 0, NULL},
+        {IASP_SPN_128, NID_X9_62_prime256v1, 32, 32, NID_sha256, 16, kdf_spn1},
+        {IASP_SPN_256, NID_secp521r1, 66, 64, NID_sha512, 32, kdf_spn2},
+        {IASP_SPN_MAX, 0, 0, 0, 0, 0, NULL},
 };
 
 
@@ -482,7 +483,7 @@ bool crypto_sign_update_bb(const binbuf_t * const bb)
 bool crypto_sign_final(iasp_sig_t * const sig)
 {
     size_t siglen;
-    static unsigned char *sigbuf;
+    static unsigned char *sigbuf = NULL;
     static const unsigned char *psigbuf;
     size_t dlen;
     ECDSA_SIG* ecdsa;
@@ -490,7 +491,8 @@ bool crypto_sign_final(iasp_sig_t * const sig)
     assert(sig != NULL);
 
     /* 7 bytes for DER structure, 2 * group size for (r, s) pair */
-    EVP_DigestSignFinal(&sign_ctx, sigbuf, &siglen);
+    EVP_DigestSignFinal(&sign_ctx, NULL, &siglen);
+    debug_log("Signature length: %d\n", siglen);
     psigbuf = sigbuf = malloc(siglen);
 
     /* finish signing */
@@ -499,15 +501,26 @@ bool crypto_sign_final(iasp_sig_t * const sig)
     }
 
     /* set sig */
-    dlen = spn_map[sign_spn].eclen;
     memset(sig->sigdata, 0, sizeof(sig->sigdata));
-    ecdsa = d2i_ECDSA_SIG(NULL, &psigbuf, siglen);
-    BN_bn2bin(ecdsa->r, sig->sigdata + (dlen - BN_num_bytes(ecdsa->r)));
-    BN_bn2bin(ecdsa->s, sig->sigdata + (2*dlen - BN_num_bytes(ecdsa->s)));
-    sig->spn = sign_spn;
-    sig->siglen = dlen * 2;
-    sig->sigtype = sign_type;
+    switch(sign_type) {
+        case IASP_SIG_EC:
+            dlen = spn_map[sign_spn].eclen;
+            ecdsa = d2i_ECDSA_SIG(NULL, &psigbuf, siglen);
+            BN_bn2bin(ecdsa->r, sig->sigdata + (dlen - BN_num_bytes(ecdsa->r)));
+            BN_bn2bin(ecdsa->s, sig->sigdata + (2*dlen - BN_num_bytes(ecdsa->s)));
+            sig->siglen = dlen * 2;
+            break;
 
+        case IASP_SIG_HMAC:
+            memcpy(sig->sigdata, sigbuf, siglen);
+            sig->siglen = siglen;
+            break;
+
+        default:
+            abort();
+    }
+    sig->spn = sign_spn;
+    sig->sigtype = sign_type;
     free(sigbuf);
 
     return true;
@@ -523,9 +536,20 @@ bool crypto_sign_update(const unsigned char *b, size_t blen)
 }
 
 
-size_t crypto_get_sign_length(iasp_spn_code_t spn_code)
+size_t crypto_get_sign_length(iasp_spn_code_t spn_code, iasp_sigtype_t sigtype)
 {
-    return spn_map[spn_code].eclen * 2;
+    switch(sigtype) {
+        case IASP_SIG_EC:
+            return spn_map[spn_code].eclen * 2;
+
+        case IASP_SIG_HMAC:
+            return spn_map[spn_code].dlen;
+
+        default:
+            abort();
+    }
+
+    return 0;
 }
 
 
@@ -566,7 +590,6 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
     const iasp_pkey_t *pkeybin;
 
     assert(id != NULL);
-    assert(sign_type == sigtype);
 
     /* get md for profile */
     md = EVP_get_digestbynid(spn_map[id->spn].nid_dgst);
@@ -650,25 +673,38 @@ bool crypto_verify_final(const iasp_sig_t * const sig)
     ECDSA_SIG* ecdsa;
     size_t dlen;
     size_t siglen;
-    unsigned char *ecdsa_bin = NULL;
+    const unsigned char *bin = NULL;
 
     assert(sig != NULL);
     if(sig->spn != sign_spn) {
         return false;
     }
 
-    /* get ECDSA structure */
-    ecdsa = ECDSA_SIG_new();
-    dlen = spn_map[sign_spn].eclen;
-    BN_bin2bn(sig->sigdata, dlen, ecdsa->r);
-    BN_bin2bn(&sig->sigdata[dlen], dlen, ecdsa->s);
-    siglen = i2d_ECDSA_SIG(ecdsa, &ecdsa_bin);
-    if(siglen == 0) {
-        return false;
+    /* prepare signature */
+    switch(sign_type) {
+        case IASP_SIG_EC:
+            /* get ECDSA structure */
+            ecdsa = ECDSA_SIG_new();
+            dlen = spn_map[sign_spn].eclen;
+            BN_bin2bn(sig->sigdata, dlen, ecdsa->r);
+            BN_bin2bn(&sig->sigdata[dlen], dlen, ecdsa->s);
+            siglen = i2d_ECDSA_SIG(ecdsa, (unsigned char **)&bin);
+            if(siglen == 0) {
+                return false;
+            }
+            break;
+
+        case IASP_SIG_HMAC:
+            bin = sig->sigdata;
+            siglen = sig->siglen;
+            break;
+
+        default:
+            abort();
     }
 
     /* verify signature */
-    return EVP_DigestVerifyFinal(&sign_ctx, ecdsa_bin, siglen) != 0;
+    return EVP_DigestVerifyFinal(&sign_ctx, bin, siglen) != 0;
 }
 
 

@@ -246,7 +246,7 @@ bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
     }
 
     /* get signature length */
-    sig->siglen = crypto_get_sign_length(sig->spn);
+    sig->siglen = crypto_get_sign_length(sig->spn, sig->sigtype);
 
     /* zero buffer */
     memset(sig->sigdata, 0, sizeof(sig->sigdata));
