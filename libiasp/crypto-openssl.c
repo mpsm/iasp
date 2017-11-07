@@ -5,6 +5,7 @@
 #include "config.h"
 #include "debug.h"
 
+#include <openssl/asn1.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
@@ -51,6 +52,7 @@ const binbuf_t * oob = NULL;
 static EVP_MD_CTX sign_ctx;
 static iasp_spn_code_t sign_spn;
 static EVP_PKEY sign_pkey;
+static ASN1_OCTET_STRING sign_key;
 
 
 /* private methods */
@@ -406,7 +408,7 @@ void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
 }
 
 
-bool crypto_sign_init(iasp_spn_code_t spn_code)
+bool crypto_sign_init(iasp_spn_code_t spn_code, iasp_sigtype_t sigtype)
 {
     const iasp_spn_support_t *cs = crypto_get_supported_spn(spn_code);
     unsigned int i = 0;
@@ -433,9 +435,36 @@ bool crypto_sign_init(iasp_spn_code_t spn_code)
 
     /* init sign context */
     EVP_MD_CTX_init(&sign_ctx);
-    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, (EC_KEY *)cs->aux_data) == 0) {
-        return false;
+
+    /* init pkey */
+    switch(sigtype) {
+        case IASP_SIG_EC:
+            EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_EC);
+            if(EVP_PKEY_set1_EC_KEY(&sign_pkey, (EC_KEY *)cs->aux_data) == 0) {
+                return false;
+            }
+            break;
+
+        case IASP_SIG_HMAC:
+            if(oob == NULL) {
+                return false;
+            }
+
+            /* correct key length */
+            if(md->md_size < oob->size) {
+                sign_key.length = md->md_size;
+            }
+
+
+            EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_HMAC);
+            EVP_PKEY_assign(&sign_pkey, EVP_PKEY_HMAC, &sign_key);
+            break;
+
+        default:
+            abort();
     }
+
+    /* init sign context */
     EVP_DigestSignInit(&sign_ctx, NULL, md, NULL, &sign_pkey);
 
     return true;
@@ -528,26 +557,53 @@ bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey)
 }
 
 
-bool crypto_verify_init(const iasp_identity_t * const id)
+bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype)
 {
     const EVP_MD *md = NULL;
     const iasp_pkey_t *pkeybin;
 
     assert(id != NULL);
 
-    /* find public key */
-    pkeybin = crypto_get_pkey_by_id(id);
-    if(pkeybin == NULL) {
-        return false;
-    }
-
-    /* initiate EVP_PKEY */
-    if(!crypto_pkey_to_evp(pkeybin, &sign_pkey)) {
-        return false;
-    }
-
     /* get md for profile */
     md = EVP_get_digestbynid(spn_map[id->spn].nid_dgst);
+
+    /* setup pkey */
+    switch(sigtype) {
+        case IASP_SIG_EC:
+            /* set pkey type */
+            EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_EC);
+
+            /* find public key */
+            pkeybin = crypto_get_pkey_by_id(id);
+            if(pkeybin == NULL) {
+                return false;
+            }
+
+            /* initiate EVP_PKEY */
+            if(!crypto_pkey_to_evp(pkeybin, &sign_pkey)) {
+                return false;
+            }
+            break;
+
+        case IASP_SIG_HMAC:
+            if(oob == NULL) {
+                return false;
+            }
+
+            /* correct key length */
+            if(md->md_size < oob->size) {
+                sign_key.length = md->md_size;
+            }
+
+            EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_HMAC);
+            EVP_PKEY_assign(&sign_pkey, EVP_PKEY_HMAC, &sign_key);
+            break;
+
+        default:
+            abort();
+    }
+
+
 
     /* init md context */
     EVP_MD_CTX_init(&sign_ctx);
@@ -807,4 +863,8 @@ size_t crypto_get_key_size(iasp_spn_code_t spn)
 void crypto_set_oob_key(const binbuf_t * const bb)
 {
     oob = bb;
+    sign_key.data = oob->buf;
+    sign_key.flags = 0;
+    sign_key.length = oob->size;
+    sign_key.type = V_ASN1_OCTET_STRING;
 }

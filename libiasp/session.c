@@ -388,7 +388,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     }
 
     /* signing */
-    if(!crypto_sign_init(s->spn)) {
+    if(!crypto_sign_init(s->spn, IASP_SIG_EC)) {
         abort();
     }
     byte = (uint8_t)s->spn;
@@ -431,6 +431,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
     /* set desired auth type */
     msg.hmsg_init_auth.req_sigtype = sigtype;
+    s->peer_auth_meth = sigtype;
 
     /* encode reply */
     if(!iasp_encode_hmsg_init_auth(reply, &msg.hmsg_init_auth)) {
@@ -484,7 +485,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     }
 
     /* prepare data for signature verification */
-    if(!crypto_verify_init(&i->id)) {
+    if(!crypto_verify_init(&i->id, IASP_SIG_EC)) {
         return false;
     }
     byte = (uint8_t)s->spn;
@@ -538,7 +539,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* sign negotiation */
     msg.hmsg_resp_auth.has_hmac = false;
-    if(!crypto_sign_init(s->spn)) {
+    if(!crypto_sign_init(s->spn, sigtype)) {
         abort();
     }
     byte = s->spn;
@@ -576,7 +577,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     r = &s->sides[SESSION_SIDE_RESPONDER];
 
     /* verify signature */
-    if(!crypto_verify_init(&r->id)) {
+    if(!crypto_verify_init(&r->id, s->peer_auth_meth)) {
         return false;
     }
     byte = (uint8_t)s->spn;

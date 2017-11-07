@@ -31,6 +31,7 @@ typedef struct {
     iasp_salt_t salt;
     iasp_spn_code_t spn;
     iasp_session_side_t side;
+    iasp_sigtype_t peer_auth_meth;
 
     /* negotiation sides data */
     iasp_session_side_data_t sides[SESSION_SIDE_COUNT];
