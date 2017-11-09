@@ -122,7 +122,7 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
 
         /* find receiving address */
         for(i = 0 ; i < address_count; ++i) {
-            if(address_map[i].s == recv_fd) {
+            if(FD_ISSET(address_map[i].s, &rfds)) {
                 break;
             }
         }
