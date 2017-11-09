@@ -398,13 +398,31 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     crypto_gen_nonce(&i->nonce);
 
     /* determine desired authentication method */
-    if(!iasp_trust_is_trusted(&r->id)) {
-        debug_log("Peer is untrusted - requesting HMAC authentication.\n");
-        sigtype = IASP_SIG_HMAC;
-    }
-    else {
-        debug_log("Peer is trusted.\n");
-        sigtype = IASP_SIG_EC;
+    switch(role) {
+        case IASP_ROLE_CD:
+            if(!iasp_trust_is_trusted(&r->id)) {
+                    debug_log("Peer is untrusted - requesting HMAC authentication.\n");
+                    sigtype = IASP_SIG_HMAC;
+                }
+                else {
+                    debug_log("Peer is trusted.\n");
+                    sigtype = IASP_SIG_EC;
+                }
+            break;
+
+        case IASP_ROLE_TP:
+        case IASP_ROLE_FFD:
+            if(!iasp_trust_is_trusted(&r->id)) {
+                debug_log("Peer is untrusted - aborting.\n");
+                return false;
+            }
+            else {
+                sigtype = IASP_SIG_EC;
+            }
+            break;
+
+        default:
+            abort();
     }
 
     /* signing */
