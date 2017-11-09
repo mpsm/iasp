@@ -110,6 +110,8 @@ void iasp_proto_init(uint8_t * obuf, size_t obuflen)
     buf = obuf;
     bufsize = obuflen;
 
+    memset(buf, 0, bufsize);
+
     iasp_proto_reset_payload();
 }
 
@@ -171,6 +173,9 @@ bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pc
     /* prepare descriptor */
     bb.buf = buf;
     bb.size = bufsize;
+
+    /* reset receive buffer */
+    memset(bb.buf, 0, bb.size);
 
     /* receive msg */
     if(!iasp_network_receive(addr, &pctx->peer, &bb, timeout)) {

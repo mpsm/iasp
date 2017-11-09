@@ -189,12 +189,14 @@ void iasp_session_handle_addr(iasp_address_t * const addr)
 
     assert(addr != NULL);
 
-    /* TODO: set proper timeout */
+    /* reset context */
     iasp_proto_ctx_init(&pctx);
+    iasp_reset_message();
+
+    /* TODO: set proper timeout */
     if(!iasp_proto_receive(addr, &pctx, NULL, 50000)) {
         abort();
     }
-    iasp_reset_message();
     sb = iasp_proto_get_payload_sb();
 
     debug_log("Received msg: %u bytes from ", sb->size);
@@ -270,6 +272,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
             /* match peer address */
             if(iasp_network_address_equal(&p->peer, &pctx->peer)) {
                 s = &sessions[i];
+                debug_log("Found session: %p\n", s);
                 break;
             }
         }
@@ -280,8 +283,9 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
         if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
             abort();
         }
-        /* TODO: dup peer address */
+
         s = iasp_session_new(&pctx->addr, &pctx->peer);
+        debug_log("Created new session: %p\n", s);
         if(s == NULL) {
             abort();
         }

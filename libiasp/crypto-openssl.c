@@ -438,6 +438,9 @@ bool crypto_sign_init(iasp_spn_code_t spn_code, iasp_sigtype_t sigtype)
     /* init sign context */
     EVP_MD_CTX_init(&sign_ctx);
 
+    /* reset pkey */
+    memset(&sign_pkey, 0, sizeof(sign_pkey));
+
     /* init pkey */
     switch(sigtype) {
         case IASP_SIG_EC:
@@ -593,6 +596,9 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
 
     /* get md for profile */
     md = EVP_get_digestbynid(spn_map[id->spn].nid_dgst);
+
+    /* reset pkey */
+    memset(&sign_pkey, 0, sizeof(sign_pkey));
 
     /* setup pkey */
     switch(sigtype) {
