@@ -97,11 +97,11 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
     else {
         FD_ZERO(&rfds);
         FD_SET(my_aux->s, &rfds);
-        max_fd = my_aux->s + 1;
+        max_fd = my_aux->s;
     }
 
     /* wait for message */
-    recv_fd = select(max_fd, &rfds, NULL, NULL, &tv);
+    recv_fd = select(max_fd + 1, &rfds, NULL, NULL, &tv);
     if(recv_fd == -1) {
         return false;
     }
@@ -112,7 +112,7 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
     }
 
     /* ensure there is a data on socket */
-    if(read_any) {
+    if(!read_any) {
         if(!FD_ISSET(my_aux->s, &rfds)) {
             return false;
         }

@@ -81,7 +81,7 @@ bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
     /* prepare descriptor */
     bb.buf = packet_sb.data;
     bb.size = packet_sb.size;
-    if(payload != NULL) {
+    if(payload != NULL && payload != &payload_sb) {
         if(!streambuf_write_sb(&packet_sb, payload)) {
             return false;
         }

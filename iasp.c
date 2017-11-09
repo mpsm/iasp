@@ -444,8 +444,9 @@ static int main_tp(const modecontext_t *ctx)
 {
     printf("Executing TP mode.\n");
 
-    iasp_session_handle_addr(ctx->address);
-    iasp_session_handle_addr(ctx->address);
+    for(;;) {
+        iasp_session_handle_any();
+    }
 
     return ERROR_OK;
 }
