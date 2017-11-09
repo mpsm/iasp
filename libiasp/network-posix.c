@@ -288,7 +288,7 @@ uint16_t iasp_network_address_port(const iasp_address_t * const address)
 
     aux = AUX(address);
 
-    return (uint16_t)aux->sin.sin6_port;
+    return htons((uint16_t)aux->sin.sin6_port);
 }
 
 

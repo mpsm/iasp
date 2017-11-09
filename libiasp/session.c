@@ -194,9 +194,17 @@ void iasp_session_handle_addr(iasp_address_t * const addr)
     if(!iasp_proto_receive(addr, &pctx, NULL, 50000)) {
         abort();
     }
-
     iasp_reset_message();
     sb = iasp_proto_get_payload_sb();
+
+    debug_log("Received msg: %u bytes from ", sb->size);
+    debug_print_address(&pctx.peer);
+    debug_newline();
+    debug_log("Received on ");
+    debug_print_address(&pctx.addr);
+    debug_newline();
+
+    /* handle received message */
     iasp_handle_message(&pctx, sb);
 }
 
