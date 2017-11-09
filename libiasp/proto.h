@@ -83,7 +83,7 @@ void iasp_proto_reset_payload(void);
 void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
 bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload);
-bool iasp_proto_receive(const iasp_address_t * const address, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
+bool iasp_proto_receive(iasp_address_t * const address, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
         unsigned int timeout);
 
 

@@ -153,7 +153,7 @@ void iasp_proto_bump_pn(iasp_proto_ctx_t * const this)
 }
 
 
-bool iasp_proto_receive(const iasp_address_t * const addr, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
+bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
         unsigned int timeout)
 {
     binbuf_t bb;

@@ -174,7 +174,15 @@ void iasp_session_respond(iasp_session_t * const this)
 }
 
 
-void iasp_session_handle_addr(const iasp_address_t * const addr)
+void iasp_session_handle_any()
+{
+    iasp_address_t addr = { NULL };
+
+    iasp_session_handle_addr(&addr);
+}
+
+
+void iasp_session_handle_addr(iasp_address_t * const addr)
 {
     iasp_proto_ctx_t pctx;
     streambuf_t *sb;

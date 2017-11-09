@@ -2,6 +2,7 @@
 #define __IASP_DEBUG_H__
 
 #include "types.h"
+#include "network.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -18,6 +19,7 @@ void debug_newline(void);
 void debug_print_nonce(const iasp_nonce_t *nonce);
 void debug_print_id(const iasp_identity_t *id);
 void debug_print_pkey(const iasp_pkey_t *pkey);
+void debug_print_address(const iasp_address_t *addr);
 
 
 #elif IASP_DEBUG == 0
@@ -28,6 +30,7 @@ void debug_print_pkey(const iasp_pkey_t *pkey);
 #  define debug_print_nonce(X)      {}
 #  define debug_print_id(X)         {}
 #  define debug_print_pkey(X)       {}
+#  define debug_print_address(X)    {}
 
 #else
 #  error "Invalid IASP_DEBUG value"

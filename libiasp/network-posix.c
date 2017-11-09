@@ -33,11 +33,11 @@ struct posix_net_aux {
 
 
 /* private methods */
-//static bool network_rebuild_set(fd_set *set);
+static bool network_rebuild_set(fd_set *set, int * const max_fd);
 
 
 /* private data */
-static struct posix_net_aux read_aux;
+static struct posix_net_aux read_peer_aux;
 fd_set s;
 
 
@@ -59,7 +59,7 @@ bool iasp_network_send(const iasp_address_t * const address, const iasp_address_
 
 
 /* INFO: thread unsafe */
-bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
+bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout)
 {
     struct posix_net_aux *my_aux;
@@ -67,50 +67,82 @@ bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t *
     socklen_t saslen = sizeof(struct sockaddr_in6);
     fd_set rfds;
     struct timeval tv;
-    int retval;
+    bool read_any = false;
+    int max_fd;
+    int recv_fd;
 
     assert(address != NULL);
     assert(peer != NULL);
-
-    assert(address->aux != NULL);
     assert(peer->aux == NULL);
 
-
     /* init aux data */
-    my_aux = AUX(address);
-    memset(&read_aux, 0, sizeof(struct posix_net_aux));
+    if(address->aux == NULL) {
+        read_any = true;
+    }
+    else {
+        my_aux = AUX(address);
+    }
+
+    /* cleanup reader aux data */
+    memset(&read_peer_aux, 0, sizeof(struct posix_net_aux));
 
     /* set timeout */
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout % 1000) * 1000;
 
-    /* set fd mask */
-    FD_ZERO(&rfds);
-    FD_SET(my_aux->s, &rfds);
+    /* setup descriptor mask */
+    if(read_any) {
+        network_rebuild_set(&rfds, &max_fd);
+    }
+    else {
+        FD_ZERO(&rfds);
+        FD_SET(my_aux->s, &rfds);
+        max_fd = my_aux->s + 1;
+    }
 
     /* wait for message */
-    retval = select(my_aux->s + 1, &rfds, NULL, NULL, &tv);
-    if(retval == -1) {
+    recv_fd = select(max_fd, &rfds, NULL, NULL, &tv);
+    if(recv_fd == -1) {
         return false;
     }
 
     /* check if timeout */
-    if(retval == 0) {
-        /* timeout */
-    }
-
-    /* ensure there is a data on socket */
-    if(!FD_ISSET(my_aux->s, &rfds)) {
+    if(recv_fd == 0) {
         return false;
     }
 
+    /* ensure there is a data on socket */
+    if(read_any) {
+        if(!FD_ISSET(my_aux->s, &rfds)) {
+            return false;
+        }
+    }
+    else {
+        unsigned int i;
+
+        /* find receiving address */
+        for(i = 0 ; i < address_count; ++i) {
+            if(address_map[i].s == recv_fd) {
+                break;
+            }
+        }
+
+        /* not found */
+        if(i == address_count) {
+            abort();
+        }
+
+        /* set my address */
+        address->aux = my_aux = address_map[i].address->aux;
+    }
+
     /* read message */
-    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&read_aux.sin, &saslen);
+    rcvd = recvfrom(my_aux->s, msg->buf, msg->size, 0, (struct sockaddr *)&read_peer_aux.sin, &saslen);
     if(rcvd == -1) {
         return false;
     }
     msg->size = (size_t)rcvd;
-    peer->aux = &read_aux;
+    peer->aux = &read_peer_aux;
 
     return true;
 }
@@ -329,10 +361,10 @@ void iasp_network_address_dup(const iasp_address_t * const address, iasp_address
 }
 
 
-#if 0
-static bool network_rebuild_set(fd_set *set)
+static bool network_rebuild_set(fd_set *set, int * const max_fd)
 {
     unsigned int i;
+    int max = 0;
 
     assert(set != NULL);
 
@@ -342,9 +374,19 @@ static bool network_rebuild_set(fd_set *set)
 
     FD_ZERO(set);
     for(i = 0; i < address_count; ++i) {
-        FD_SET(address_map[i].s, set);
+        int s = address_map[i].s;
+
+        if(s > max) {
+            max = s;
+        }
+
+        FD_SET(s, set);
+    }
+
+    if(max_fd != NULL) {
+        *max_fd = max;
     }
 
     return true;
 }
-#endif
+

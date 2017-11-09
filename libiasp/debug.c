@@ -2,6 +2,7 @@
 
 #include "debug.h"
 #include "types.h"
+#include "network.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -75,5 +76,16 @@ void debug_print_pkey(const iasp_pkey_t *pkey)
     printf(" | %lu bytes | ", pkey->pkeylen);
     debug_print_binary(pkey->pkeydata, pkey->pkeylen);
 }
+
+
+void debug_print_address(const iasp_address_t *addr)
+{
+    iasp_ip_t ip;
+
+    iasp_network_address2ip(addr, &ip);
+
+    printf("%s:%d", iasp_network_ip_to_str(&ip), iasp_network_address_port(addr));
+}
+
 
 #endif

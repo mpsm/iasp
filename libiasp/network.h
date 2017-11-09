@@ -20,7 +20,7 @@ bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const 
 bool iasp_network_add_address_str(iasp_address_t * const address, const char *ip, const uint16_t port);
 bool iasp_network_release_address(iasp_address_t * const address);
 bool iasp_network_send(const iasp_address_t * const address, const iasp_address_t * const peer, const binbuf_t * const msg);
-bool iasp_network_receive(const iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
+bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout);
 bool iasp_network_receive_any(iasp_address_t * const address,  iasp_address_t * const peer, binbuf_t * const msg,
         unsigned int timeout);
