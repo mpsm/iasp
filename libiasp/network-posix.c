@@ -86,9 +86,6 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
         my_aux = AUX(address);
     }
 
-    /* max_fd sanity check */
-    assert(max_fd > -1);
-
     /* cleanup reader aux data */
     memset(&read_peer_aux, 0, sizeof(struct posix_net_aux));
 
@@ -105,6 +102,9 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
         FD_SET(my_aux->s, &rfds);
         max_fd = my_aux->s;
     }
+
+    /* max_fd sanity check */
+    assert(max_fd > -1);
 
     /* wait for message */
     recv_fd = select(max_fd + 1, &rfds, NULL, NULL, &tv);
