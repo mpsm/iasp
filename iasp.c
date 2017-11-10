@@ -162,7 +162,12 @@ int main(int argc, char *argv[])
         if((keys = config_lookup(&cfg, "crypto.public_keys")) != NULL) {
             size_t count = config_setting_length(keys);
 
-            public_keys.keys = malloc(sizeof(*public_keys.keys) * count);
+            if(count == 0) {
+                public_keys.keys = NULL;
+            }
+            else {
+                public_keys.keys = malloc(sizeof(*public_keys.keys) * count);
+            }
             public_keys.count = count;
 
             for(i = 0; i < count; ++i) {
@@ -184,6 +189,8 @@ int main(int argc, char *argv[])
             crypto_set_pubkeys(&public_keys);
 
             /* read OOB key */
+            oob.buf = NULL;
+            oob.size = 0;
             if((keys = config_lookup(&cfg, "crypto.oob_key")) != NULL) {
                 const char *filename = config_setting_get_string(keys);
 
@@ -244,6 +251,12 @@ exit:
     config_destroy(&cfg);
     iasp_network_release_address(&myaddr);
     crypto_destroy();
+    if(public_keys.keys) {
+        free(public_keys.keys);
+    }
+    if(oob.buf) {
+        free(oob.buf);
+    }
 
     return ret;
 }

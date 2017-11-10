@@ -241,11 +241,6 @@ bool crypto_add_key(binbuf_t * const pkey)
         cs = cs->next;
     }
 
-    /* print new key */
-    //pubkey = EC_KEY_get0_public_key(key);
-    //printf("Public key (compressed):   %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_COMPRESSED, NULL));
-    //printf("Public key (uncompressed): %s\n", EC_POINT_point2hex(group, pubkey, POINT_CONVERSION_UNCOMPRESSED, NULL));
-
     /* allocate new crypto support structure */
     new_cs = malloc(sizeof(iasp_spn_support_t));
     new_cs->aux_data = key;
@@ -934,9 +929,28 @@ void crypto_set_oob_key(const binbuf_t * const bb)
 
 void crypto_destroy()
 {
-   ENGINE_cleanup();
-   EVP_cleanup();
-   CRYPTO_cleanup_all_ex_data();
-   ERR_remove_state(0);
-   ERR_free_strings();
+    iasp_spn_support_t *s = spn;
+
+    while(s != NULL) {
+        EC_KEY *eckey;
+        iasp_spn_support_t *next = s->next;
+
+        eckey = (EC_KEY *)s->aux_data;
+
+        if(eckey) {
+            EC_KEY_free(eckey);
+        }
+
+        free(s);
+        s = next;
+    }
+
+    /* keys cleanup */
+
+    /* general openssl cleanup */
+    ENGINE_cleanup();
+    EVP_cleanup();
+    CRYPTO_cleanup_all_ex_data();
+    ERR_remove_state(0);
+    ERR_free_strings();
 }
