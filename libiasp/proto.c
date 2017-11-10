@@ -3,6 +3,7 @@
 #include "streambuf.h"
 #include "binbuf.h"
 #include "types.h"
+#include "debug.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -214,6 +215,11 @@ bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pc
     psb = payload == NULL ? &payload_sb : payload;
     payload_size = packet_sb.size - packet_sb.read_index;
     streambuf_init(psb, packet_sb.data + packet_sb.read_index, payload_size, payload_size);
+
+    /* debug */
+    debug_log("Message received: %s, answer: %s, PV=%u, SPN=%u, MT=%u, PN=%u, payload size: %u bytes.\n",
+            pctx->encrypted ? "encrypted" : "not encrypted",
+            pctx->answer ? "yes" : "no", pctx->pv, pctx->spn, pctx->msg_type, pctx->pn, psb->size);
 
     return true;
 }
