@@ -23,7 +23,10 @@ typedef struct{
 } crypto_ecdhe_context_t;
 
 
+/* init and destroy */
 bool crypto_init(void);
+void crypto_destroy(void);
+
 bool crypto_add_key(binbuf_t * const pkey);
 void crypto_get_ids(iasp_ids_t * const ids);
 bool crypto_gen_nonce(iasp_nonce_t *nonce);

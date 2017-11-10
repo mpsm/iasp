@@ -9,6 +9,8 @@
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -927,4 +929,14 @@ void crypto_set_oob_key(const binbuf_t * const bb)
     sign_key.flags = 0;
     sign_key.length = oob->size;
     sign_key.type = V_ASN1_OCTET_STRING;
+}
+
+
+void crypto_destroy()
+{
+   ENGINE_cleanup();
+   EVP_cleanup();
+   CRYPTO_cleanup_all_ex_data();
+   ERR_remove_state(0);
+   ERR_free_strings();
 }

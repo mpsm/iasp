@@ -243,6 +243,7 @@ int main(int argc, char *argv[])
 exit:
     config_destroy(&cfg);
     iasp_network_release_address(&myaddr);
+    crypto_destroy();
 
     return ret;
 }
