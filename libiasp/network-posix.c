@@ -68,7 +68,7 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
     fd_set rfds;
     struct timeval tv;
     bool read_any = false;
-    int max_fd;
+    int max_fd = -1;
     int recv_fd;
 
     assert(address != NULL);
@@ -77,11 +77,17 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
 
     /* init aux data */
     if(address->aux == NULL) {
+        if(address_count == 0) {
+            return false;
+        }
         read_any = true;
     }
     else {
         my_aux = AUX(address);
     }
+
+    /* max_fd sanity check */
+    assert(max_fd > -1);
 
     /* cleanup reader aux data */
     memset(&read_peer_aux, 0, sizeof(struct posix_net_aux));
