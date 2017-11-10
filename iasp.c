@@ -3,6 +3,7 @@
 
 #include <libconfig.h>
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -314,13 +315,11 @@ static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_ident
 }
 
 
-#include <arpa/inet.h>
-#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-#define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
 static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
 {
     const config_setting_t *tpid;
     uint64_t id64;
+    uint32_t id32[2];
 
     tpid = config_lookup(cfg, "cd.trusted_tp");
     if(tpid == NULL) {
@@ -337,8 +336,9 @@ static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
 
     /* get ID data */
     id64 = config_setting_get_int64_elem(tpid, 1);
-    *(uint64_t *)id->data = htonll(id64);
-
+    id32[0] = htonl((uint32_t)(id64 >> 32));
+    id32[1] = htonl((uint32_t)(id64 & 0xFFFFFFFF));
+    memcpy(id->data, id32, sizeof(id));
     goto ok;
 
 invalid_setting:
