@@ -348,8 +348,52 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
 
 bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const msg)
 {
-    return iasp_decode_pkey(sb, &msg->pkey) &&
-            iasp_decode_sig(sb, &msg->sig);
+    /* decode required fields */
+    if(!iasp_decode_nonce(sb, &msg->inonce) ||
+            !iasp_decode_nonce(sb, &msg->rnonce) ||
+            !iasp_decode_sig(sb, &msg->sig) ||
+            !iasp_decode_dhkey(sb, &msg->dhkey)) {
+        return false;
+    }
+
+    /* check optional fields */
+    while(!streambuf_read_empty(sb)) {
+        iasp_field_code_t fc;
+        uint8_t byte;
+
+        if(!streambuf_peek(sb, &byte)) {
+            /* impossible to happen due to previous check */
+            abort();
+        }
+        fc = (iasp_field_code_t)byte;
+
+        switch(fc) {
+            case IASP_FIELD_PKEY:
+                if(msg->has_pkey || !iasp_decode_pkey(sb, &msg->pkey)) {
+                    return false;
+                }
+                msg->has_pkey = true;
+                break;
+
+            case IASP_FIELD_SIG:
+                if(msg->has_oobsig || !iasp_decode_sig(sb, &msg->oobsig)) {
+                    return false;
+                }
+                msg->has_oobsig = true;
+                break;
+
+            case IASP_FIELD_HINT:
+                if(msg->has_hint || !iasp_decode_hint(sb, &msg->hint)) {
+                    return false;
+                }
+                break;
+
+            default:
+                return false;
+        }
+    }
+
+    return true;
 }
 
 

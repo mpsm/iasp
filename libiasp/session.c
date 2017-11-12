@@ -715,6 +715,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
 
+    /* set nonces */
+    memcpy(&msg.hmsg_resp_auth.inonce.data, i->nonce.data, sizeof(iasp_nonce_t));
+    memcpy(&msg.hmsg_resp_auth.rnonce.data, r->nonce.data, sizeof(iasp_nonce_t));
+
     /* extract public part of ephemeral key */
     if(!crypto_ecdhe_pkey(&tpd->ecdhe_ctx, &msg.hmsg_resp_auth.dhkey)) {
         abort();
@@ -825,6 +829,82 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     i = &s->sides[SESSION_SIDE_INITIATOR];
     r = &s->sides[SESSION_SIDE_RESPONDER];
 
+    /* check nonces */
+    if(memcmp(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t)) != 0) {
+        debug_log("INONCE mismatch.\n");
+        return false;
+    }
+    if(memcmp(&r->nonce, &msg.hmsg_init_auth.rnonce, sizeof(iasp_nonce_t)) != 0) {
+        debug_log("RNONCE mismatch.\n");
+        return false;
+    }
+
+    /* check hint if asked for */
+    if(i->flags.bits.send_hint) {
+        if(!msg.hmsg_resp_auth.has_hint) {
+            debug_log("HINT is missed.\n");
+            return false;
+        }
+
+        /* TODO: do something with hint */
+        debug_log("Hint: %.*s.\n", msg.hmsg_resp_auth.hint.hintlen, (const char *)msg.hmsg_resp_auth.hint.hintdata);
+    }
+
+    /* check pkey if asked for */
+    if(i->flags.bits.send_pkey) {
+        if(!msg.hmsg_resp_auth.has_pkey) {
+            debug_log("PKEY is missed.\n");
+            return false;
+        }
+
+        /* TODO: do something with PKEY */
+        debug_log("PKEY received.\n");
+    }
+
+    /* check OOB key signature if asked for */
+    if(i->flags.bits.oob_auth) {
+        if(!msg.hmsg_resp_auth.has_oobsig) {
+            debug_log("OOB key signature is missed.\n");
+            return false;
+        }
+
+        /* sanity check */
+        if(msg.hmsg_init_auth.oobsig.sigtype != IASP_SIG_HMAC) {
+            debug_log("Invalid OOB signature.");
+            return false;
+        }
+
+        /* check OOB signature */
+        if(!crypto_verify_init(&i->id, IASP_SIG_HMAC)) {
+            return false;
+        }
+        byte = (uint8_t)s->spn;
+        crypto_verify_update(&byte, sizeof(byte));
+        crypto_verify_update(i->id.data, sizeof(i->id.data));
+        crypto_verify_update(r->id.data, sizeof(r->id.data));
+        crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
+        crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
+        crypto_verify_update(&i->flags.byte, sizeof(i->flags.byte));
+        crypto_verify_update(&r->flags.byte, sizeof(r->flags.byte));
+        crypto_verify_update(msg.hmsg_resp_auth.dhkey.pkeydata, msg.hmsg_resp_auth.dhkey.pkeylen);
+
+        /* check optional fields */
+        if(msg.hmsg_resp_auth.has_hint) {
+            crypto_verify_update(msg.hmsg_resp_auth.hint.hintdata, msg.hmsg_resp_auth.hint.hintlen);
+        }
+        if(msg.hmsg_resp_auth.has_pkey) {
+            crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+        }
+
+        /* finalize verification */
+        if(!crypto_verify_final(&msg.hmsg_resp_auth.oobsig)) {
+            debug_log("Peer's HMAC signature does not match!\n");
+            return false;
+        }
+
+        debug_log("Peer's HMAC signature match!\n");
+    }
+
     /* verify signature */
     if(!crypto_verify_init(&r->id, s->peer_auth_meth)) {
         return false;
@@ -835,7 +915,22 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->id.data, sizeof(r->id.data));
     crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
+    crypto_verify_update(&i->flags.byte, sizeof(i->flags.byte));
+    crypto_verify_update(&r->flags.byte, sizeof(r->flags.byte));
     crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+
+    /* add optional fields to signature */
+    if(msg.hmsg_resp_auth.has_hint) {
+        crypto_verify_update(msg.hmsg_resp_auth.hint.hintdata, msg.hmsg_resp_auth.hint.hintlen);
+    }
+    if(msg.hmsg_resp_auth.has_pkey) {
+        crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+    }
+    if(msg.hmsg_resp_auth.has_oobsig) {
+        crypto_verify_update(msg.hmsg_resp_auth.oobsig.sigdata, msg.hmsg_resp_auth.oobsig.siglen);
+    }
+
+    /* finalize verification */
     if(!crypto_verify_final(&msg.hmsg_resp_auth.sig)) {
         debug_log("Peer's signature does not match!\n");
         return false;

@@ -162,9 +162,26 @@ bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * c
 
 bool iasp_encode_hmsg_resp_auth(streambuf_t *sb, const iasp_hmsg_resp_auth_t * const msg)
 {
-    return iasp_encode_varint(sb, IASP_HMSG_RESP_AUTH) &&
-            iasp_encode_pkey(sb, &msg->pkey) &&
-            iasp_encode_sig(sb, &msg->sig);
+    if(!iasp_encode_varint(sb, IASP_HMSG_RESP_AUTH) ||
+            !iasp_encode_nonce(sb, &msg->inonce) ||
+            !iasp_encode_nonce(sb, &msg->rnonce) ||
+            !iasp_encode_sig(sb, &msg->sig) ||
+            !iasp_encode_dhkey(sb, &msg->dhkey)) {
+        return false;
+    }
+
+    /* encode optional fields */
+    if(msg->has_hint && iasp_encode_hint(sb, &msg->hint)) {
+        return false;
+    }
+    if(msg->has_pkey && iasp_encode_pkey(sb, &msg->pkey)) {
+        return false;
+    }
+    if(msg->has_oobsig && iasp_encode_sig(sb, &msg->oobsig)) {
+        return false;
+    }
+
+    return true;
 }
 
 
