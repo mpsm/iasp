@@ -476,9 +476,6 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     /* check if OOB key signature is needed */
     if(r->flags.bits.oob_auth) {
         msg.hmsg_init_auth.has_oobsig = true;
-        if(!msg.hmsg_init_auth.has_dhkey) {
-            return false;
-        }
 
         /* signing */
         if(!crypto_sign_init(s->spn, IASP_SIG_HMAC)) {
@@ -491,6 +488,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
         crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
         crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
         crypto_sign_update(&i->flags.byte, sizeof(i->flags.byte));
+        crypto_sign_update(&r->flags.byte, sizeof(r->flags.byte));
 
         /* add optional fields to signature */
         if(msg.hmsg_init_auth.has_dhkey) {
@@ -525,6 +523,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_sign_update(&i->flags.byte, sizeof(i->flags.byte));
+    crypto_sign_update(&r->flags.byte, sizeof(r->flags.byte));
 
     /* add optional fields to signature */
     if(msg.hmsg_init_auth.has_dhkey) {
@@ -572,15 +571,90 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     i = &s->sides[SESSION_SIDE_INITIATOR];
     r = &s->sides[SESSION_SIDE_RESPONDER];
 
-    /* get initiator nonce, check own nonce */
-    memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
+    /* check nonces */
+    if(memcmp(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t)) != 0) {
+        debug_log("INONCE mismatch.\n");
+        return false;
+    }
     if(memcmp(&r->nonce, &msg.hmsg_init_auth.rnonce, sizeof(iasp_nonce_t)) != 0) {
+        debug_log("RNONCE mismatch.\n");
         return false;
     }
 
-    /* set SPis */
+    /* set initiator flags */
+    i->flags = msg.hmsg_init_auth.flags;
+
+    /* set SPIs */
     memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+
+    /* check hint if asked for */
+    if(r->flags.bits.send_hint) {
+        if(!msg.hmsg_init_auth.has_hint) {
+            debug_log("HINT is missed.\n");
+            return false;
+        }
+
+        /* TODO: do something with hint */
+        debug_log("Hint: %.*s.\n", msg.hmsg_init_auth.hint.hintlen, (const char *)msg.hmsg_init_auth.hint.hintdata);
+    }
+
+    /* check pkey if asked for */
+    if(r->flags.bits.send_pkey) {
+        if(!msg.hmsg_init_auth.has_pkey) {
+            debug_log("PKEY is missed.\n");
+            return false;
+        }
+
+        /* TODO: do something with PKEY */
+        debug_log("PKEY received.\n");
+    }
+
+    /* check OOB key signature if asked for */
+    if(r->flags.bits.oob_auth) {
+        if(!msg.hmsg_init_auth.has_oobsig) {
+            debug_log("OOB key signature is missed.\n");
+            return false;
+        }
+
+        /* sanity check */
+        if(msg.hmsg_init_auth.oobsig.sigtype != IASP_SIG_HMAC) {
+            debug_log("Invalid OOB signature.");
+            return false;
+        }
+
+        /* check OOB signature */
+        if(!crypto_verify_init(&i->id, IASP_SIG_HMAC)) {
+            return false;
+        }
+        byte = (uint8_t)s->spn;
+        crypto_verify_update(&byte, sizeof(byte));
+        crypto_verify_update(i->id.data, sizeof(i->id.data));
+        crypto_verify_update(r->id.data, sizeof(r->id.data));
+        crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
+        crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
+        crypto_verify_update(&i->flags.byte, sizeof(i->flags.byte));
+        crypto_verify_update(&r->flags.byte, sizeof(r->flags.byte));
+
+        /* check optional fields */
+        if(msg.hmsg_init_auth.has_dhkey) {
+            crypto_verify_update(msg.hmsg_init_auth.dhkey.pkeydata, msg.hmsg_init_auth.dhkey.pkeylen);
+        }
+        if(msg.hmsg_init_auth.has_hint) {
+            crypto_verify_update(msg.hmsg_init_auth.hint.hintdata, msg.hmsg_init_auth.hint.hintlen);
+        }
+        if(msg.hmsg_init_auth.has_pkey) {
+            crypto_verify_update(msg.hmsg_init_auth.pkey.pkeydata, msg.hmsg_init_auth.pkey.pkeylen);
+        }
+
+        /* finalize verification */
+        if(!crypto_verify_final(&msg.hmsg_init_auth.oobsig)) {
+            debug_log("Peer's HMAC signature does not match!\n");
+            return false;
+        }
+
+        debug_log("Peer's HMAC signature match!\n");
+    }
 
     /* prepare data for signature verification */
     if(!crypto_verify_init(&i->id, IASP_SIG_EC)) {
@@ -592,9 +666,11 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->id.data, sizeof(r->id.data));
     crypto_verify_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
+    crypto_verify_update(&i->flags.byte, sizeof(i->flags.byte));
+    crypto_verify_update(&r->flags.byte, sizeof(r->flags.byte));
 
     /* choose key for ECDHE */
-    if(!msg.hmsg_init_auth.has_pkey) {
+    if(!msg.hmsg_init_auth.has_dhkey) {
         /* find pkey by peer key id */
         pkey = crypto_get_pkey_by_id(&i->id);
         if(pkey == NULL) {
@@ -603,9 +679,20 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         debug_log("Using peer's public key for ECDHE\n");
     }
     else {
-        pkey = &msg.hmsg_init_auth.pkey;
+        pkey = &msg.hmsg_init_auth.dhkey;
         debug_log("Using received ephemeral key for ECDHE\n");
+        crypto_verify_update(msg.hmsg_init_auth.dhkey.pkeydata, msg.hmsg_init_auth.dhkey.pkeylen);
+    }
+
+    /* verify optional fields */
+    if(msg.hmsg_init_auth.has_hint && r->flags.bits.send_hint) {
+        crypto_verify_update(msg.hmsg_init_auth.hint.hintdata, msg.hmsg_init_auth.hint.hintlen);
+    }
+    if(msg.hmsg_init_auth.has_pkey && r->flags.bits.send_pkey) {
         crypto_verify_update(msg.hmsg_init_auth.pkey.pkeydata, msg.hmsg_init_auth.pkey.pkeylen);
+    }
+    if(msg.hmsg_init_auth.has_oobsig && r->flags.bits.oob_auth) {
+        crypto_verify_update(msg.hmsg_init_auth.oobsig.sigdata, msg.hmsg_init_auth.oobsig.siglen);
     }
 
     /* verify signature */
@@ -629,25 +716,90 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     reply = iasp_proto_get_payload_sb();
 
     /* extract public part of ephemeral key */
-    if(!crypto_ecdhe_pkey(&tpd->ecdhe_ctx, &msg.hmsg_resp_auth.pkey)) {
+    if(!crypto_ecdhe_pkey(&tpd->ecdhe_ctx, &msg.hmsg_resp_auth.dhkey)) {
         abort();
     }
 
+    /* set hint if needed */
+    if(i->flags.bits.send_hint) {
+        msg.hmsg_resp_auth.has_hint = true;
+        if(!iasp_get_hint(&msg.hmsg_resp_auth.hint)) {
+            return false;
+        }
+    }
+
+    /* set public key if needed */
+    if(i->flags.bits.send_pkey) {
+        msg.hmsg_resp_auth.has_pkey = true;
+        if(!crypto_get_pkey(s->spn, &msg.hmsg_resp_auth.pkey)) {
+            /* bad SPN - impossible to happen */
+            abort();
+        }
+    }
+
+    /* check if OOB key signature is needed */
+    if(i->flags.bits.oob_auth) {
+        msg.hmsg_resp_auth.has_oobsig = true;
+
+        /* signing */
+        if(!crypto_sign_init(s->spn, IASP_SIG_HMAC)) {
+            abort();
+        }
+        byte = (uint8_t)s->spn;
+        crypto_sign_update(&byte, sizeof(byte));
+        crypto_sign_update(i->id.data, sizeof(i->id.data));
+        crypto_sign_update(r->id.data, sizeof(r->id.data));
+        crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
+        crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
+        crypto_sign_update(&i->flags.byte, sizeof(i->flags.byte));
+        crypto_sign_update(&r->flags.byte, sizeof(r->flags.byte));
+        crypto_sign_update(msg.hmsg_resp_auth.dhkey.pkeydata, msg.hmsg_resp_auth.dhkey.pkeylen);
+
+        /* add optional fields to signature */
+        if(msg.hmsg_resp_auth.has_hint) {
+            crypto_sign_update(msg.hmsg_resp_auth.hint.hintdata, msg.hmsg_resp_auth.hint.hintlen);
+        }
+        if(msg.hmsg_resp_auth.has_pkey) {
+            crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+        }
+
+        /* finalize HMAC signature */
+        msg.hmsg_resp_auth.has_oobsig = true;
+        if(!crypto_sign_final(&msg.hmsg_resp_auth.oobsig)) {
+            abort();
+        }
+    }
+
     /* sign negotiation */
-#if 0
-    msg.hmsg_resp_auth.has_hmac = false;
-    if(!crypto_sign_init(s->spn, sigtype)) {
+    if(!crypto_sign_init(s->spn, IASP_SIG_EC)) {
         abort();
     }
-    byte = s->spn;
+    byte = (uint8_t)s->spn;
     crypto_sign_update(&byte, sizeof(byte));
     crypto_sign_update(i->id.data, sizeof(i->id.data));
     crypto_sign_update(r->id.data, sizeof(r->id.data));
     crypto_sign_update(i->nonce.data, sizeof(i->nonce.data));
     crypto_sign_update(r->nonce.data, sizeof(r->nonce.data));
-    crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
-    crypto_sign_final(&msg.hmsg_resp_auth.sig);
-#endif
+    crypto_sign_update(&i->flags.byte, sizeof(i->flags.byte));
+    crypto_sign_update(&r->flags.byte, sizeof(r->flags.byte));
+    crypto_sign_update(msg.hmsg_resp_auth.dhkey.pkeydata, msg.hmsg_resp_auth.dhkey.pkeylen);
+
+    /* add optional fields to signature */
+    if(msg.hmsg_resp_auth.has_hint) {
+        crypto_sign_update(msg.hmsg_resp_auth.hint.hintdata, msg.hmsg_resp_auth.hint.hintlen);
+    }
+    if(msg.hmsg_resp_auth.has_pkey) {
+        crypto_sign_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+    }
+    if(msg.hmsg_resp_auth.has_oobsig) {
+        crypto_sign_update(msg.hmsg_resp_auth.oobsig.sigdata, msg.hmsg_resp_auth.oobsig.siglen);
+    }
+
+    /* finalize signature */
+    if(!crypto_sign_final(&msg.hmsg_resp_auth.sig)) {
+        abort();
+    }
+
     /* encode reply */
     if(!iasp_encode_hmsg_resp_auth(reply, &msg.hmsg_resp_auth)) {
         return false;

@@ -61,33 +61,38 @@ typedef struct {
     iasp_pkey_t             pkey;
     iasp_sig_t              oobsig;
     iasp_hint_t             hint;
+
+    /* optional fields flags */
+    bool                    has_pkey;
+    bool                    has_oobsig;
+    bool                    has_hint;
 } iasp_hmsg_resp_auth_t;
 
 
 typedef struct {
-    iasp_identity_t id;
-    iasp_ip_t       ip;
+    iasp_identity_t         id;
+    iasp_ip_t               ip;
 } iasp_hmsg_redirect_t;
 
 
 typedef struct {
-    iasp_identity_t id;
+    iasp_identity_t         id;
 } iasp_hmsg_hint_req_t;
 
 
 typedef struct {
-    iasp_hint_t hint;
+    iasp_hint_t             hint;
 } iasp_hmsg_hint_resp_t;
 
 
 typedef union {
-    iasp_hmsg_init_hello_t   hmsg_init_hello;
-    iasp_hmsg_resp_hello_t   hmsg_resp_hello;
-    iasp_hmsg_init_auth_t    hmsg_init_auth;
-    iasp_hmsg_resp_auth_t    hmsg_resp_auth;
-    iasp_hmsg_redirect_t     hmsg_redirect;
-    iasp_hmsg_hint_req_t     hmsg_hint_req;
-    iasp_hmsg_hint_resp_t    hmsg_hint_resp;
+    iasp_hmsg_init_hello_t  hmsg_init_hello;
+    iasp_hmsg_resp_hello_t  hmsg_resp_hello;
+    iasp_hmsg_init_auth_t   hmsg_init_auth;
+    iasp_hmsg_resp_auth_t   hmsg_resp_auth;
+    iasp_hmsg_redirect_t    hmsg_redirect;
+    iasp_hmsg_hint_req_t    hmsg_hint_req;
+    iasp_hmsg_hint_resp_t   hmsg_hint_resp;
 } iasp_msg_storage_t;
 
 

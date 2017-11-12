@@ -12,16 +12,9 @@
 #include <string.h>
 
 
-static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc)
-{
-    iasp_field_code_t field_code;
-
-    if(!iasp_decode_field_code(sb, &field_code)) {
-        return false;
-    }
-
-    return fc == field_code;
-}
+/* private methods */
+static bool iasp_decode_pkey_common(streambuf_t *sb, iasp_pkey_t * const pkey, iasp_field_code_t fc);
+static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc);
 
 
 bool iasp_decode_varint(streambuf_t *sb, unsigned int *i)
@@ -262,8 +255,20 @@ bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
 
 bool iasp_decode_pkey(streambuf_t *sb, iasp_pkey_t * const pkey)
 {
+    return iasp_decode_pkey_common(sb, pkey, IASP_FIELD_PKEY);
+}
+
+
+bool iasp_decode_dhkey(streambuf_t *sb, iasp_pkey_t * const pkey)
+{
+    return iasp_decode_pkey_common(sb, pkey, IASP_FIELD_DHKEY);
+}
+
+
+static bool iasp_decode_pkey_common(streambuf_t *sb, iasp_pkey_t * const pkey, iasp_field_code_t fc)
+{
     /* check field id */
-    if(!iasp_decode_check_field_code(sb, IASP_FIELD_PKEY)) {
+    if(!iasp_decode_check_field_code(sb, fc)) {
         return false;
     }
 
@@ -306,15 +311,30 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
 
         switch(fc) {
             case IASP_FIELD_PKEY:
+                if(msg->has_pkey || !iasp_decode_pkey(sb, &msg->pkey)) {
+                    return false;
+                }
+                msg->has_pkey = true;
                 break;
 
             case IASP_FIELD_DHKEY:
+                if(msg->has_dhkey || !iasp_decode_dhkey(sb, &msg->dhkey)) {
+                    return false;
+                }
+                msg->has_dhkey = true;
                 break;
 
             case IASP_FIELD_SIG:
+                if(msg->has_oobsig || !iasp_decode_sig(sb, &msg->oobsig)) {
+                    return false;
+                }
+                msg->has_oobsig = true;
                 break;
 
             case IASP_FIELD_HINT:
+                if(msg->has_hint || !iasp_decode_hint(sb, &msg->hint)) {
+                    return false;
+                }
                 break;
 
             default:
@@ -365,3 +385,44 @@ bool iasp_decode_session_flags(streambuf_t *sb, iasp_session_flags_t * const fla
             streambuf_read(sb, &flags->byte, sizeof(flags->byte));
 
 }
+
+
+bool iasp_decode_hint(streambuf_t *sb, iasp_hint_t * const hint)
+{
+    unsigned int hlen;
+
+    /* check field code */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_HINT)) {
+        return false;
+    }
+
+    /* decode hint length */
+    if(!iasp_decode_varint(sb, &hlen)) {
+        return false;
+    }
+
+    /* check hint length */
+    if(hlen > IASP_CONFIG_MAX_HINT_SIZE) {
+        return false;
+    }
+
+    /* fill hint info */
+    hint->hintlen = (size_t)hlen;
+    memset(hint->hintdata, 0, IASP_CONFIG_MAX_HINT_SIZE);
+
+    /* read hint */
+    return streambuf_read(sb, hint->hintdata, hlen);
+}
+
+
+static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc)
+{
+    iasp_field_code_t field_code;
+
+    if(!iasp_decode_field_code(sb, &field_code)) {
+        return false;
+    }
+
+    return fc == field_code;
+}
+
