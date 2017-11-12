@@ -19,6 +19,9 @@
 #include <string.h>
 
 
+#define IASP_SESSION_RECV_TIMEOUT (1000)
+
+
 /* session handler */
 typedef bool (*iasp_session_handler_t)(iasp_session_t * const, streambuf_t * const);
 
@@ -31,7 +34,7 @@ static iasp_role_t role;
 
 /* private methods */
 static void iasp_reset_message(void);
-static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
+static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 
 
@@ -129,7 +132,7 @@ void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, 
 }
 
 
-void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
+iasp_session_result_t iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     streambuf_t *sb;
     iasp_session_t *s;
@@ -161,14 +164,10 @@ void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 
     /* proto send message */
     if(!iasp_proto_send(&s->pctx, NULL)) {
-        abort();
+        return SESSION_CMD_ERROR;
     }
 
-    /* handle response */
-    iasp_session_handle_addr(&s->pctx.addr);
-
-    /* handle second response */
-    iasp_session_handle_addr(&s->pctx.addr);
+    return SESSION_CMD_OK;
 }
 
 
@@ -178,15 +177,15 @@ void iasp_session_respond(iasp_session_t * const this)
 }
 
 
-void iasp_session_handle_any()
+iasp_session_result_t iasp_session_handle_any()
 {
     iasp_address_t addr = { NULL };
 
-    iasp_session_handle_addr(&addr);
+    return iasp_session_handle_addr(&addr);
 }
 
 
-void iasp_session_handle_addr(iasp_address_t * const addr)
+iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr)
 {
     iasp_proto_ctx_t pctx;
     streambuf_t *sb;
@@ -197,9 +196,9 @@ void iasp_session_handle_addr(iasp_address_t * const addr)
     iasp_proto_ctx_init(&pctx);
     iasp_reset_message();
 
-    /* TODO: set proper timeout */
-    if(!iasp_proto_receive(addr, &pctx, NULL, 50000)) {
-        abort();
+    /* receive with timeout */
+    if(!iasp_proto_receive(addr, &pctx, NULL, IASP_SESSION_RECV_TIMEOUT)) {
+        return SESSION_CMD_TIMEOUT;
     }
     sb = iasp_proto_get_payload_sb();
 
@@ -211,7 +210,7 @@ void iasp_session_handle_addr(iasp_address_t * const addr)
     debug_newline();
 
     /* handle received message */
-    iasp_handle_message(&pctx, sb);
+    return iasp_handle_message(&pctx, sb);
 }
 
 
@@ -222,7 +221,7 @@ static void iasp_reset_message()
 
 
 /* MESSAGE HANDLERS */
-static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
+static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
 {
     unsigned int msg_code;
     uint16_t lookup_code;
@@ -231,12 +230,12 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 
     /* get message code */
     if(!iasp_decode_varint(payload, &msg_code)) {
-        abort();
+        return SESSION_CMD_INVALID_MSG;
     }
 
     /* check range */
     if(msg_code >= UINT8_MAX) {
-        abort();
+        return SESSION_CMD_INVALID_MSG;
     }
 
     /* find handler */
@@ -251,7 +250,7 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
 
     /* found handler */
     if(lookup->handler == NULL) {
-        abort();
+        return SESSION_CMD_INVALID_MSG;
     }
 
     /* find session */
@@ -285,20 +284,22 @@ static void iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t
     /* create new session */
     if(s == NULL) {
         if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
-            abort();
+            return SESSION_CMD_INVALID_MSG;
         }
 
         s = iasp_session_new(&pctx->addr, &pctx->peer);
         debug_log("Created new session: %p\n", s);
         if(s == NULL) {
-            abort();
+            return SESSION_CMD_NOMEM;
         }
     }
 
     /* handle message */
     if(lookup->handler(s, payload) == false) {
-        abort();
+        return SESSION_CMD_ERROR;
     }
+
+    return SESSION_CMD_OK;
 }
 
 

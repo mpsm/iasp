@@ -27,6 +27,18 @@ typedef enum {
     SESSION_SIDE_COUNT,
 } iasp_session_side_t;
 
+
+typedef enum {
+    SESSION_CMD_OK = 0,
+    SESSION_CMD_ERROR = 1,
+    SESSION_CMD_TIMEOUT = 2,
+    SESSION_CMD_INVALID_MSG = 3,
+    SESSION_CMD_NOMEM = 4,
+
+    SESSION_CMD_MAX
+} iasp_session_result_t;
+
+
 typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
@@ -50,10 +62,11 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
 
 /* per-session methods */
 void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, const iasp_address_t *peer_addr);
-void iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
 void iasp_session_respond(iasp_session_t * const this);
-void iasp_session_handle_addr(iasp_address_t * const addr);
-void iasp_session_handle_any(void);
+iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr);
+iasp_session_result_t iasp_session_handle_any(void);
 
+/* commands */
+iasp_session_result_t iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
 
 #endif
