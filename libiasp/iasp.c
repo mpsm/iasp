@@ -45,7 +45,7 @@ bool iasp_get_hint(iasp_hint_t *h)
 {
     assert(h != NULL);
 
-    if(h->hintlen == 0) {
+    if(iasp_hint.size == 0) {
         return false;
     }
 

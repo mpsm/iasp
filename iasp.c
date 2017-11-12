@@ -210,6 +210,20 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* add hint if present */
+    {
+        const char *hint;
+
+        /* read address from config */
+        if(config_lookup_string(&cfg, "hint", &hint) == CONFIG_TRUE) {
+            debug_log("Setting hint: %s.\n", hint);
+            iasp_set_hint(hint);
+        }
+        else {
+            debug_log("No hint found.\n");
+        }
+    }
+
     /* init network */
     {
         const char *ip;
