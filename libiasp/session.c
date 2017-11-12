@@ -871,8 +871,8 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
         }
 
         /* sanity check */
-        if(msg.hmsg_init_auth.oobsig.sigtype != IASP_SIG_HMAC) {
-            debug_log("Invalid OOB signature.");
+        if(msg.hmsg_resp_auth.oobsig.sigtype != IASP_SIG_HMAC) {
+            debug_log("Invalid OOB signature.\n");
             return false;
         }
 
