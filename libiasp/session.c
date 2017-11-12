@@ -306,7 +306,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 {
     streambuf_t *reply;
     iasp_identity_t *iid = NULL;
-    iasp_session_side_data_t *i;
+    iasp_session_side_data_t *i, *r;
     unsigned int j;
 
     /* decode message */
@@ -316,6 +316,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 
     /* get side data */
     i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
 
     /* mark session side */
     s->side = SESSION_SIDE_RESPONDER;
@@ -361,6 +362,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     }
 
     /* ================ ROLE DEPEND =================== */
+    r->flags.byte = 0;
     if(role != IASP_ROLE_CD) {
         iasp_tpdata_t *tpd = NULL;
 
@@ -369,12 +371,12 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         s->aux = tpd;
 
         /* set session flags */
-        s->flags.byte = 0;
         if(!iasp_trust_is_trusted_peer(&i->id)) {
-            s->flags.bits.send_hint = true;
+            r->flags.bits.send_hint = true;
         }
-        msg.hmsg_resp_hello.flags.byte = s->flags.byte;
     }
+    msg.hmsg_resp_hello.flags = r->flags;
+
     /* ================ ROLE DEPEND =================== */
 
     /* send responder hello */
@@ -917,7 +919,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     crypto_verify_update(r->nonce.data, sizeof(r->nonce.data));
     crypto_verify_update(&i->flags.byte, sizeof(i->flags.byte));
     crypto_verify_update(&r->flags.byte, sizeof(r->flags.byte));
-    crypto_verify_update(msg.hmsg_resp_auth.pkey.pkeydata, msg.hmsg_resp_auth.pkey.pkeylen);
+    crypto_verify_update(msg.hmsg_resp_auth.dhkey.pkeydata, msg.hmsg_resp_auth.dhkey.pkeylen);
 
     /* add optional fields to signature */
     if(msg.hmsg_resp_auth.has_hint) {
@@ -948,7 +950,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     }
 
     /* generate shared secret */
-    if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.pkey, ecdhe_ctx)) {
+    if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.dhkey, ecdhe_ctx)) {
         return false;
     }
 

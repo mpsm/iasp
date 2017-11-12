@@ -335,6 +335,7 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
                 if(msg->has_hint || !iasp_decode_hint(sb, &msg->hint)) {
                     return false;
                 }
+                msg->has_hint = true;
                 break;
 
             default:
@@ -386,6 +387,7 @@ bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const m
                 if(msg->has_hint || !iasp_decode_hint(sb, &msg->hint)) {
                     return false;
                 }
+                msg->has_hint = true;
                 break;
 
             default:
