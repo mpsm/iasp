@@ -143,16 +143,16 @@ bool iasp_encode_hmsg_init_auth(streambuf_t *sb, const iasp_hmsg_init_auth_t * c
     }
 
     /* encode optional fields */
-    if(msg->has_dhkey && iasp_encode_dhkey(sb, &msg->dhkey)) {
+    if(msg->has_dhkey && !iasp_encode_dhkey(sb, &msg->dhkey)) {
         return false;
     }
-    if(msg->has_hint && iasp_encode_hint(sb, &msg->hint)) {
+    if(msg->has_hint && !iasp_encode_hint(sb, &msg->hint)) {
         return false;
     }
-    if(msg->has_pkey && iasp_encode_pkey(sb, &msg->pkey)) {
+    if(msg->has_pkey && !iasp_encode_pkey(sb, &msg->pkey)) {
         return false;
     }
-    if(msg->has_oobsig && iasp_encode_sig(sb, &msg->oobsig)) {
+    if(msg->has_oobsig && !iasp_encode_sig(sb, &msg->oobsig)) {
         return false;
     }
 
@@ -171,13 +171,13 @@ bool iasp_encode_hmsg_resp_auth(streambuf_t *sb, const iasp_hmsg_resp_auth_t * c
     }
 
     /* encode optional fields */
-    if(msg->has_hint && iasp_encode_hint(sb, &msg->hint)) {
+    if(msg->has_hint && !iasp_encode_hint(sb, &msg->hint)) {
         return false;
     }
-    if(msg->has_pkey && iasp_encode_pkey(sb, &msg->pkey)) {
+    if(msg->has_pkey && !iasp_encode_pkey(sb, &msg->pkey)) {
         return false;
     }
-    if(msg->has_oobsig && iasp_encode_sig(sb, &msg->oobsig)) {
+    if(msg->has_oobsig && !iasp_encode_sig(sb, &msg->oobsig)) {
         return false;
     }
 
