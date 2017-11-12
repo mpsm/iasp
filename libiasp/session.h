@@ -39,6 +39,15 @@ typedef enum {
 } iasp_session_result_t;
 
 
+typedef enum {
+    SESSION_EVENT_ESTABLISHED,
+    SESSION_EVENT_TERMINATED,
+
+    /* sentinel */
+    SESSION_EVENT_MAX
+} iasp_session_event_t;
+
+
 typedef struct {
     bool active;
     iasp_proto_ctx_t pctx;
@@ -55,10 +64,15 @@ typedef struct {
 } iasp_session_t;
 
 
+/* event handler type */
+typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_session_event_t e);
+
+
 /* global methods */
 void iasp_sessions_reset(void);
 void iasp_session_set_role(iasp_role_t r);
 iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer);
+void iasp_session_set_cb(iasp_session_cb_t cb);
 
 /* per-session methods */
 void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, const iasp_address_t *peer_addr);

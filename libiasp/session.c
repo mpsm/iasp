@@ -25,6 +25,9 @@
 /* session handler */
 typedef bool (*iasp_session_handler_t)(iasp_session_t * const, streambuf_t * const);
 
+/* event handler */
+static iasp_session_cb_t event_cb;
+
 /* session data */
 static iasp_session_t sessions[IASP_CONFIG_MAX_SESSIONS];
 
@@ -87,6 +90,13 @@ const session_handler_lookup_t *handlers[IASP_ROLE_MAX] =
 {
         cd_session_handlers, ffd_session_handlers, tp_session_handlers
 };
+
+
+void iasp_session_set_cb(iasp_session_cb_t cb)
+{
+    assert(cb != NULL);
+    event_cb = cb;
+}
 
 
 void iasp_sessions_reset()
@@ -812,6 +822,11 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* event callback */
+    if(event_cb != NULL) {
+        event_cb(s, SESSION_EVENT_ESTABLISHED);
+    }
+
     /* send reply */
     return iasp_proto_send(&s->pctx, reply);
 }
@@ -953,6 +968,11 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     /* generate shared secret */
     if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.dhkey, ecdhe_ctx)) {
         return false;
+    }
+
+    /* event callback */
+    if(event_cb != NULL) {
+        event_cb(s, SESSION_EVENT_ESTABLISHED);
     }
 
     return true;

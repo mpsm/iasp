@@ -70,6 +70,10 @@ static bool read_file(const char *filename, binbuf_t *bb);
 static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
 
 
+/* default event handler */
+static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
+
+
 /* crypto context */
 static crypto_public_keys_t public_keys;
 static binbuf_t oob;
@@ -242,6 +246,9 @@ int main(int argc, char *argv[])
             goto exit;
         }
     }
+
+    /* install event handler */
+    iasp_session_set_cb(event_handler);
 
     /* print supported profiles */
     {
@@ -503,4 +510,23 @@ static int main_tp(const modecontext_t *ctx)
     }
 
     return ERROR_OK;
+}
+
+
+static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
+{
+    debug_log("Event %d received for session %p.\n", e, s);
+
+    switch(e) {
+        case SESSION_EVENT_ESTABLISHED:
+            debug_log("Session established.\n");
+            break;
+
+        case SESSION_EVENT_TERMINATED:
+            debug_log("Session terminated.\n");
+            break;
+
+        default:
+            debug_log("Unknown event!\n");
+    }
 }
