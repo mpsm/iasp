@@ -39,6 +39,20 @@ bool streambuf_read(streambuf_t *this, uint8_t *buf, size_t readsize)
 }
 
 
+bool streambuf_peek(streambuf_t *this, uint8_t *byte)
+{
+    assert(this != NULL);
+    assert(byte != NULL);
+
+    if(streambuf_read_empty(this)) {
+        return false;
+    }
+
+    *byte = this->data[this->read_index];
+    return true;
+}
+
+
 bool streambuf_write(streambuf_t *this, const uint8_t *buf, size_t writesize)
 {
     if(writesize == 0 || this->max_size - this->size < writesize) {

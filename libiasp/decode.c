@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -92,7 +93,7 @@ bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const
     assert(sb != NULL);
     assert(msg != NULL);
 
-    return iasp_decode_ids(sb, &msg->ids);
+    return iasp_decode_nonce(sb, &msg->inonce) && iasp_decode_ids(sb, &msg->ids);
 }
 
 
@@ -149,7 +150,10 @@ bool iasp_decode_hmsg_resp_hello(streambuf_t *sb, iasp_hmsg_resp_hello_t * const
     assert(sb != NULL);
     assert(msg != NULL);
 
-    return iasp_decode_id(sb, &msg->id, false) && iasp_decode_nonce(sb, &msg->rnonce);
+    return iasp_decode_nonce(sb, &msg->inonce) &&
+            iasp_decode_nonce(sb, &msg->rnonce) &&
+            iasp_decode_session_flags(sb, &msg->flags) &&
+            iasp_decode_id(sb, &msg->id, false);
 }
 
 
@@ -285,20 +289,37 @@ bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const m
     if(!iasp_decode_nonce(sb, &msg->inonce) ||
             !iasp_decode_nonce(sb, &msg->rnonce) ||
             !iasp_decode_sig(sb, &msg->sig) ||
-            !iasp_decode_sigtype(sb, &msg->req_sigtype, false)) {
+            !iasp_decode_session_flags(sb, &msg->flags)) {
         return false;
     }
 
-    /* if something is left it should be optional pkey */
-    if(!streambuf_read_empty(sb)) {
-        if(!iasp_decode_pkey(sb, &msg->pkey)) {
-            return false;
-        }
+    /* check optional fields */
+    while(!streambuf_read_empty(sb)) {
+        iasp_field_code_t fc;
+        uint8_t byte;
 
-        msg->has_pkey = true;
-    }
-    else {
-        msg->has_pkey = false;
+        if(!streambuf_peek(sb, &byte)) {
+            /* impossible to happen due to previous check */
+            abort();
+        }
+        fc = (iasp_field_code_t)byte;
+
+        switch(fc) {
+            case IASP_FIELD_PKEY:
+                break;
+
+            case IASP_FIELD_DHKEY:
+                break;
+
+            case IASP_FIELD_SIG:
+                break;
+
+            case IASP_FIELD_HINT:
+                break;
+
+            default:
+                return false;
+        }
     }
 
     return true;
@@ -335,4 +356,12 @@ bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype, bool r
     *sigtype = (iasp_sigtype_t)i;
 
     return true;
+}
+
+
+bool iasp_decode_session_flags(streambuf_t *sb, iasp_session_flags_t * const flags)
+{
+    return iasp_decode_check_field_code(sb, IASP_FIELD_SESSION_FLAGS) &&
+            streambuf_read(sb, &flags->byte, sizeof(flags->byte));
+
 }

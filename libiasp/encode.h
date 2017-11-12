@@ -22,6 +22,9 @@ bool iasp_encode_nonce(streambuf_t *sb, const iasp_nonce_t *nonce);
 bool iasp_encode_sig(streambuf_t *sb, const iasp_sig_t *sig);
 bool iasp_encode_pkey(streambuf_t *sb, const iasp_pkey_t *pkey);
 bool iasp_encode_sigtype(streambuf_t *sb, iasp_sigtype_t sigtype, bool raw);
+bool iasp_encode_session_flags(streambuf_t *sb, const iasp_session_flags_t * const flags);
+bool iasp_encode_hint(streambuf_t * sb, const iasp_hint_t * const hint);
+bool iasp_encode_dhkey(streambuf_t *sb, const iasp_pkey_t *pkey);
 
 /* message encoding */
 bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_hmsg_init_hello_t * const msg);

@@ -83,17 +83,6 @@ const iasp_spn_support_t* crypto_get_supported_spns()
 }
 
 
-void crypto_free()
-{
-    /* TODO: implement */
-#if 0
-    if(aux_data != NULL) {
-        EC_KEY_free(aux_data);
-    }
-#endif
-}
-
-
 static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn)
 {
     const crypto_context_t *ctx = NULL;
@@ -216,7 +205,6 @@ bool crypto_add_key(binbuf_t * const pkey)
     /* extract curve nid */
     group = EC_KEY_get0_group(key);
     group_nid = EC_GROUP_get_curve_name(group);
-    //printf("Curve: %s (%d)\n",  OBJ_nid2ln(group_nid), group_nid);
 
     /* check if curve is used by known profile */
     new_spn = crypto_match_spn(key);
@@ -369,7 +357,7 @@ bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * cons
     keysize = sizeof(pkey->pkeydata);
 
     /* read public key */
-    evppkey = d2i_PUBKEY( NULL, &key_data, bb->size);
+    evppkey = d2i_PUBKEY(NULL, &key_data, bb->size);
     if(evppkey == NULL) {
         goto error;
     }
@@ -953,4 +941,34 @@ void crypto_destroy()
     CRYPTO_cleanup_all_ex_data();
     ERR_remove_state(0);
     ERR_free_strings();
+}
+
+
+bool crypto_get_pkey(iasp_spn_code_t spn_code, iasp_pkey_t * const pkey)
+{
+    const iasp_spn_support_t *s = crypto_get_supported_spn(spn_code);
+    EC_KEY *eckey;
+    uint8_t *buf;
+    size_t bufsize;
+
+    assert(pkey != NULL);
+
+    if(s == NULL) {
+        return false;
+    }
+    eckey = (EC_KEY *)s->aux_data;
+
+    /* get public key */
+    buf = pkey->pkeydata;
+    bufsize = crypto_get_pkey_length(spn_code, true);
+    if(!crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &buf, &bufsize)) {
+        return false;
+    }
+
+    /* set pkey data */
+    pkey->spn = spn_code;
+    pkey->pkeylen = bufsize;
+
+    return true;
+
 }

@@ -7,8 +7,8 @@
 
 
 void iasp_trust_set_tp(const iasp_identity_t* const id);
-bool iasp_trust_is_trusted(const iasp_identity_t * const id);
-
+bool iasp_trust_is_trusted_tp(const iasp_identity_t * const id);
+bool iasp_trust_is_trusted_peer(const iasp_identity_t * const id);
 
 
 #endif

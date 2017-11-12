@@ -4,6 +4,7 @@
 #include "network.h"
 #include "proto.h"
 #include "types.h"
+#include "role.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -14,6 +15,7 @@ typedef struct {
     iasp_nonce_t nonce;
     iasp_key_t key;
     iasp_spi_t spi;
+    iasp_session_flags_t flags;
 } iasp_session_side_data_t;
 
 
@@ -32,6 +34,7 @@ typedef struct {
     iasp_spn_code_t spn;
     iasp_session_side_t side;
     iasp_sigtype_t peer_auth_meth;
+    iasp_session_flags_t flags;
 
     /* negotiation sides data */
     iasp_session_side_data_t sides[SESSION_SIDE_COUNT];

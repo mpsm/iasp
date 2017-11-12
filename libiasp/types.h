@@ -9,16 +9,6 @@
 
 
 typedef enum {
-    IASP_ROLE_CD = 0,
-    IASP_ROLE_FFD = 1,
-    IASP_ROLE_TP = 2,
-
-    /* sentinel */
-    IASP_ROLE_MAX
-} iasp_role_t;
-
-
-typedef enum {
     IASP_SPN_NONE = 0,
     IASP_SPN_128 = 1,
     IASP_SPN_256 = 2,
@@ -35,6 +25,16 @@ typedef enum {
     /* sentinel */
     IASP_SIG_MAX,
 } iasp_sigtype_t;
+
+
+typedef union {
+    struct {
+        unsigned char send_pkey:1;
+        unsigned char oob_auth:1;
+        unsigned char send_hint:1;
+    } bits;
+    uint8_t byte;
+} iasp_session_flags_t;
 
 
 typedef struct {
@@ -83,6 +83,7 @@ typedef struct {
 
 
 typedef struct {
+    size_t hintlen;
     uint8_t hintdata[IASP_CONFIG_MAX_HINT_SIZE];
 } iasp_hint_t;
 

@@ -23,6 +23,7 @@ bool iasp_decode_nonce(streambuf_t *sb, iasp_nonce_t * const nonce);
 bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig);
 bool iasp_decode_pkey(streambuf_t *sb, iasp_pkey_t * const pkey);
 bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype, bool raw);
+bool iasp_decode_session_flags(streambuf_t *sb, iasp_session_flags_t * const flags);
 
 /* message decoding */
 bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const msg);

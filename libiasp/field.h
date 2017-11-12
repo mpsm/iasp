@@ -17,6 +17,7 @@ typedef enum {
     IASP_FIELD_SKEY = 5,
     IASP_FIELD_SPN = 6,
     IASP_FIELD_KPARAM = 7,
+    IASP_FIELD_SESSION_FLAGS = 8,
     IASP_FIELD_IP = 9,
     IASP_FIELD_CERTSTATUS = 10,
     IASP_FIELD_TOKEN = 11,
@@ -26,6 +27,7 @@ typedef enum {
     IASP_FIELD_SPI = 15,
     IASP_FIELD_KEY = 16,
     IASP_FIELD_SIGTYPE = 17,
+    IASP_FIELD_DHKEY = 18,
     IASP_FIELD_SETOF = 127,
 } iasp_field_code_t;
 

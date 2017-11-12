@@ -27,17 +27,19 @@ typedef struct{
 bool crypto_init(void);
 void crypto_destroy(void);
 
-bool crypto_add_key(binbuf_t * const pkey);
-void crypto_get_ids(iasp_ids_t * const ids);
-bool crypto_gen_nonce(iasp_nonce_t *nonce);
-void crypto_free(void);
-
-iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
+/* getters */
 bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id);
-void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
+void crypto_get_ids(iasp_ids_t * const ids);
+bool crypto_get_pkey(iasp_spn_code_t, iasp_pkey_t * const pkey);
+size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
+
+/* misc */
+bool crypto_add_key(binbuf_t * const pkey);
+bool crypto_gen_nonce(iasp_nonce_t *nonce);
+iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
 
 /* public keys */
-size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
+void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);
 const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id);
 
 /* signing */
