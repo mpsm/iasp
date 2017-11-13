@@ -26,12 +26,15 @@ bool iasp_decode_dhkey(streambuf_t *sb, iasp_pkey_t * const pkey);
 bool iasp_decode_sigtype(streambuf_t *sb, iasp_sigtype_t * const sigtype, bool raw);
 bool iasp_decode_session_flags(streambuf_t *sb, iasp_session_flags_t * const flags);
 bool iasp_decode_hint(streambuf_t *sb, iasp_hint_t * const hint);
+bool iasp_decode_address(streambuf_t *sb, iasp_address_t * const address);
+bool iasp_decode_spi(streambuf_t *sb, iasp_spi_t * const spi);
 
 /* message decoding */
 bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const msg);
 bool iasp_decode_hmsg_resp_hello(streambuf_t *sb, iasp_hmsg_resp_hello_t * const msg);
 bool iasp_decode_hmsg_init_auth(streambuf_t *sb, iasp_hmsg_init_auth_t * const msg);
 bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const msg);
+bool iasp_decode_hmsg_redirect(streambuf_t *sb, iasp_hmsg_redirect_t * const msg);
 
 
 #endif

@@ -4,7 +4,9 @@
 #include "config.h"
 #include "field.h"
 #include "crypto.h"
+#include "network.h"
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -470,5 +472,52 @@ static bool iasp_decode_check_field_code(streambuf_t *sb, iasp_field_code_t fc)
     }
 
     return fc == field_code;
+}
+
+
+bool iasp_decode_address(streambuf_t *sb, iasp_address_t * const address)
+{
+    iasp_ip_t ip;
+    uint16_t port;
+
+    /* check field code */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_IP)) {
+        return false;
+    }
+
+    /* read port */
+    if(!streambuf_read(sb, (uint8_t *)&port, sizeof(port))) {
+        return false;
+    }
+    port = ntohs(port);
+
+    /* read ip */
+    if(!streambuf_read(sb, ip.ipdata, sizeof(ip.ipdata))) {
+        return false;
+    }
+
+    /* init address */
+    iasp_network_address_init(address, &ip, port);
+
+    return true;
+}
+
+
+bool iasp_decode_spi(streambuf_t *sb, iasp_spi_t * const spi)
+{
+    /* check field code */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_SPI)) {
+        return false;
+    }
+
+    /* read spi */
+    return streambuf_read(sb, spi->spidata, sizeof(spi->spidata));
+}
+
+
+bool iasp_decode_hmsg_redirect(streambuf_t *sb, iasp_hmsg_redirect_t * const msg)
+{
+    assert(msg != NULL);
+    return iasp_decode_id(sb, &msg->id, false) && iasp_decode_address(sb, &msg->tp_address);
 }
 
