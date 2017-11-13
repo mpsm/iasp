@@ -425,6 +425,21 @@ static int main_cd(const modecontext_t *ctx)
 
     {
         iasp_session_start(ctx->address, &tpaddr);
+
+        for(;;) {
+            switch(iasp_session_handle_any()) {
+                case SESSION_CMD_TIMEOUT:
+                    break;
+
+                case SESSION_CMD_OK:
+                    debug_log("Message processing OK.\n");
+                    break;
+
+                default:
+                    debug_log("Message processing error.\n");
+                    break;
+            }
+        }
     }
 
     ret = ERROR_OK;
