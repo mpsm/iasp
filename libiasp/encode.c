@@ -1,9 +1,12 @@
 #include "encode.h"
 #include "streambuf.h"
 #include "field.h"
+#include "network.h"
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 
 bool iasp_encode_varint(streambuf_t *sb, unsigned int x)
@@ -241,4 +244,36 @@ bool iasp_encode_hint(streambuf_t * sb, const iasp_hint_t * const hint)
     return iasp_encode_field_code(sb, IASP_FIELD_HINT) &&
             iasp_encode_varint(sb, hlen) &&
             streambuf_write(sb, hint->hintdata, hlen);
+}
+
+
+bool iasp_encode_address(streambuf_t *sb, const iasp_address_t * const address)
+{
+    const iasp_ip_t *ip;
+    uint16_t port;
+
+    assert(address != NULL);
+
+    ip = iasp_network_address_ip(address);
+    port = iasp_network_address_port(address);
+
+    port = htons(port);
+
+    return iasp_encode_field_code(sb, IASP_FIELD_IP) &&
+            streambuf_write(sb, (uint8_t *)&port, sizeof(port)) &&
+            streambuf_write(sb, ip->ipdata, sizeof(ip->ipdata));
+}
+
+
+bool iasp_encode_spi(streambuf_t *sb, const iasp_spi_t spi)
+{
+    return iasp_encode_field_code(sb, IASP_FIELD_SPI) && streambuf_write(sb, spi.spidata, sizeof(spi.spidata));
+}
+
+
+bool iasp_encode_hmsg_redirect(streambuf_t *sb, const iasp_hmsg_redirect_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_HMSG_REDIRECT) &&
+            iasp_encode_id(sb, &msg->id) &&
+            iasp_encode_address(sb, &msg->tp_address);
 }

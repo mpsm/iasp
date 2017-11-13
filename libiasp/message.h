@@ -11,9 +11,6 @@ typedef enum {
     IASP_HMSG_INIT_AUTH = 3,
     IASP_HMSG_RESP_AUTH = 4,
     IASP_HMSG_REDIRECT = 5,
-    IASP_HMSG_SESSION_AUTH = 6,
-    IASP_HMSG_HINT_REQ = 7,
-    IASP_HMSG_HINT_RESP = 8,
 } iasp_handshake_msg_code_t;
 
 
@@ -71,18 +68,8 @@ typedef struct {
 
 typedef struct {
     iasp_identity_t         id;
-    iasp_ip_t               ip;
+    iasp_address_t          tp_address;
 } iasp_hmsg_redirect_t;
-
-
-typedef struct {
-    iasp_identity_t         id;
-} iasp_hmsg_hint_req_t;
-
-
-typedef struct {
-    iasp_hint_t             hint;
-} iasp_hmsg_hint_resp_t;
 
 
 typedef union {
@@ -91,8 +78,6 @@ typedef union {
     iasp_hmsg_init_auth_t   hmsg_init_auth;
     iasp_hmsg_resp_auth_t   hmsg_resp_auth;
     iasp_hmsg_redirect_t    hmsg_redirect;
-    iasp_hmsg_hint_req_t    hmsg_hint_req;
-    iasp_hmsg_hint_resp_t   hmsg_hint_resp;
 } iasp_msg_storage_t;
 
 

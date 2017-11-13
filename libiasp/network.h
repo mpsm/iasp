@@ -10,11 +10,6 @@
 #define IASP_NET_STR_IP(x) (iasp_network_ip_to_str(iasp_network_address_ip(x)))
 
 
-typedef struct {
-    void *aux;
-} iasp_address_t;
-
-
 /* network methods */
 bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const ip, const uint16_t port);
 bool iasp_network_add_address_str(iasp_address_t * const address, const char *ip, const uint16_t port);

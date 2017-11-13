@@ -116,4 +116,9 @@ typedef union {
 } iasp_spi_t;
 
 
+typedef struct {
+    void *aux;
+} iasp_address_t;
+
+
 #endif
