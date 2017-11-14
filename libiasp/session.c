@@ -142,7 +142,7 @@ void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, 
 }
 
 
-iasp_session_result_t iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
+const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     streambuf_t *sb;
     iasp_session_t *s;
@@ -174,10 +174,11 @@ iasp_session_result_t iasp_session_start(const iasp_address_t *addr, const iasp_
 
     /* proto send message */
     if(!iasp_proto_send(&s->pctx, NULL)) {
-        return SESSION_CMD_ERROR;
+        /* TODO: destroy session or retry */
+        return NULL;
     }
 
-    return SESSION_CMD_OK;
+    return s;
 }
 
 

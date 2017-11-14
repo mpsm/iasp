@@ -4,6 +4,7 @@
 #include <libconfig.h>
 
 #include <arpa/inet.h>
+#include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -24,6 +25,10 @@
 #include "libiasp/session.h"
 #include "libiasp/debug.h"
 #include "libiasp/trust.h"
+
+
+#define IASP_BUFFER_SIZE (1024)
+#define IASP_MAX_RETRIES (3)
 
 
 /* error codes */
@@ -60,23 +65,26 @@ static const struct {
 
 
 /* local buffer */
-#define IASP_BUFFER_SIZE (1024)
 static uint8_t iasp_buffer[IASP_BUFFER_SIZE];
 
+/* crypto context */
+static crypto_public_keys_t public_keys;
+static binbuf_t oob;
+
+/* local event data */
+static iasp_session_event_t last_event = SESSION_EVENT_MAX;
+static iasp_session_t *last_event_session = NULL;
 
 /* local methods */
 static bool add_key(const char *filename);
 static bool read_file(const char *filename, binbuf_t *bb);
 static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
-
+static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e, int retries);
 
 /* default event handler */
 static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
 
 
-/* crypto context */
-static crypto_public_keys_t public_keys;
-static binbuf_t oob;
 
 int main(int argc, char *argv[])
 {
@@ -424,21 +432,12 @@ static int main_cd(const modecontext_t *ctx)
     }
 
     {
-        iasp_session_start(ctx->address, &tpaddr);
-
-        for(;;) {
-            switch(iasp_session_handle_any()) {
-                case SESSION_CMD_TIMEOUT:
-                    break;
-
-                case SESSION_CMD_OK:
-                    debug_log("Message processing OK.\n");
-                    break;
-
-                default:
-                    debug_log("Message processing error.\n");
-                    break;
-            }
+        const iasp_session_t *tpses;
+        
+        tpses = iasp_session_start(ctx->address, &tpaddr);
+        if(!event_wait(tpses, SESSION_EVENT_ESTABLISHED, 3)) {
+            debug_log("Could not establish TP session.\n");
+            goto exit;
         }
     }
 
@@ -478,21 +477,12 @@ static int main_ffd(const modecontext_t *ctx)
     }
 
     {
-        iasp_session_start(ctx->address, &tpaddr);
-
-        for(;;) {
-            switch(iasp_session_handle_any()) {
-                case SESSION_CMD_TIMEOUT:
-                    break;
-
-                case SESSION_CMD_OK:
-                    debug_log("Message processing OK.\n");
-                    break;
-
-                default:
-                    debug_log("Message processing error.\n");
-                    break;
-            }
+        const iasp_session_t *tpses;
+        
+        tpses = iasp_session_start(ctx->address, &tpaddr);
+        if(!event_wait(tpses, SESSION_EVENT_ESTABLISHED, 3)) {
+            debug_log("Could not establish TP session.\n");
+            goto exit;
         }
     }
 
@@ -532,6 +522,11 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
 {
     debug_log("Event %d received for session %p.\n", e, s);
 
+    /* save last event details */
+    last_event_session = s;
+    last_event = e;
+
+    /* process event */
     switch(e) {
         case SESSION_EVENT_ESTABLISHED:
             debug_log("Session established.\n");
@@ -544,4 +539,46 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
         default:
             debug_log("Unknown event!\n");
     }
+}
+
+
+
+static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e,
+        int max_retries)
+{
+    unsigned int i;
+    int retries;
+
+    /* set retries count */
+    if(max_retries == -1) {
+        retries = UINT_MAX;
+    }
+    else {
+        retries = max_retries;
+    }
+
+    /* process incoming messages */
+    for(i = 0; i < retries;) {
+        switch(iasp_session_handle_any()) {
+            case SESSION_CMD_TIMEOUT:
+                i++;
+                break;
+
+            case SESSION_CMD_OK:
+                if(last_event == e) {
+                    if(s != NULL && s != last_event_session) {
+                        continue;
+                    }
+                    return true;
+                }
+                break;
+
+            default:
+                debug_log("Session processing error (%p).\n", s);
+                return false;
+        }
+    }
+
+    debug_log("Session processing timeout (%p).\n", s);
+    return false;
 }

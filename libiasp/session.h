@@ -81,6 +81,6 @@ iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr);
 iasp_session_result_t iasp_session_handle_any(void);
 
 /* commands */
-iasp_session_result_t iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
+const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
 
 #endif
