@@ -14,6 +14,12 @@ typedef enum {
 } iasp_handshake_msg_code_t;
 
 
+typedef enum {
+    IASP_MGMT_REQ = 1,
+    IASP_MGMT_INSTALL = 2,
+} iasp_mgmt_msg_code_t;
+
+
 typedef struct {
     iasp_nonce_t            inonce;
     iasp_ids_t              ids;

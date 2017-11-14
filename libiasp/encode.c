@@ -277,3 +277,36 @@ bool iasp_encode_hmsg_redirect(streambuf_t *sb, const iasp_hmsg_redirect_t * con
             iasp_encode_id(sb, &msg->id) &&
             iasp_encode_address(sb, &msg->tp_address);
 }
+
+
+bool iasp_encode_mgmt_req_session(streambuf_t *sb, const iasp_mgmt_req_session_t * const msg)
+{
+    assert(msg != NULL);
+
+    if(!iasp_encode_varint(sb, IASP_MGMT_REQ) || !iasp_encode_spi(sb, msg->spi) ||
+            !iasp_encode_address(sb, msg->peer_address)) {
+        return false;
+    }
+
+    if(msg->has_my_address) {
+        return iasp_encode_address(sb, msg->my_address);
+    }
+
+    return true;
+}
+
+
+bool iasp_encode_mgmt_install_session(streambuf_t *sb, const iasp_mgmt_install_session_t * const msg)
+{
+    if(!iasp_encode_varint(sb, IASP_MGMT_INSTALL) || iasp_encode_id(sb, &msg->peer_id) ||
+           !iasp_encode_spi(sb, msg->peer_spi) || !iasp_encode_address(sb, msg->peer_address)) {
+        return false;
+    }
+
+    if(msg->has_your_address) {
+        return iasp_encode_address(sb, msg->peer_address);
+    }
+
+    return true;
+}
+
