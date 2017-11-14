@@ -72,12 +72,34 @@ typedef struct {
 } iasp_hmsg_redirect_t;
 
 
+typedef struct {
+    iasp_spi_t              spi;
+    iasp_address_t *        peer_address;
+    iasp_address_t *        my_address;
+    bool                    has_my_address;
+} iasp_mgmt_req_session_t;
+
+
+typedef struct {
+    iasp_identity_t         peer_id;
+    iasp_spi_t              peer_spi;
+    iasp_address_t*         peer_address;
+    iasp_address_t*         your_address;
+    bool                    has_your_address;
+} iasp_mgmt_install_session_t;
+
+
 typedef union {
+    /* handshake protocol */
     iasp_hmsg_init_hello_t  hmsg_init_hello;
     iasp_hmsg_resp_hello_t  hmsg_resp_hello;
     iasp_hmsg_init_auth_t   hmsg_init_auth;
     iasp_hmsg_resp_auth_t   hmsg_resp_auth;
     iasp_hmsg_redirect_t    hmsg_redirect;
+
+    /* management protocol */
+    iasp_mgmt_install_session_t mgmt_install;
+    iasp_mgmt_req_session_t     mgmt_req;
 } iasp_msg_storage_t;
 
 
