@@ -270,7 +270,7 @@ bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str)
     assert(ip != NULL);
     assert(str != NULL);
 
-    return inet_pton(AF_INET6, str, ip->ipdata) != -1;
+    return inet_pton(AF_INET6, str, ip->ipdata) == 1;
 }
 
 

@@ -43,6 +43,7 @@ enum {
 /* mode context */
 typedef struct {
     iasp_address_t *address;
+    iasp_address_t *peer_address;
     config_t * cfg;
 } modecontext_t;
 
@@ -85,20 +86,52 @@ static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e, i
 static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
 
 
-
 int main(int argc, char *argv[])
 {
     int ret = ERROR_RUNTIME;
     config_t cfg;
     iasp_address_t myaddr = {NULL};
+    iasp_address_t peer_addr = {NULL};
     modehandler_t modehandler = NULL;
     modecontext_t ctx;
     iasp_role_t role;
+    uint16_t peer_port;
 
     /* check input arguments */
-    if(argc != 2) {
+    if(argc < 2 || argc > 4) {
         fprintf(stderr, "Usage: %s config_file\n", argv[0]);
         exit(ERROR_ARGS);
+    }
+
+    /* set peer port */
+    peer_port = IASP_DEFAULT_PORT;
+    if(argc == 4) {
+        int arg = atoi(argv[3]);
+
+        if(arg < 1 || arg > UINT16_MAX) {
+            fprintf(stderr, "Invalid peer port specified: %s\n", argv[3]);
+            exit(ERROR_ARGS);
+        }
+
+        peer_port = (uint16_t)arg;
+        argc--;
+    }
+
+    /* read peer ip */
+    if(argc == 3) {
+        iasp_ip_t ip;
+
+        if(!iasp_network_ip_from_str(&ip, argv[2])) {
+            fprintf(stderr, "Ivalid peer address: %s\n", argv[3]);
+            exit(ERROR_ARGS);
+        }
+
+        iasp_network_address_init(&peer_addr, &ip, peer_port);
+        ctx.peer_address = &peer_addr;
+        debug_log("Using peer address: %s:%u\n", argv[2], peer_port);
+    }
+    else {
+        ctx.peer_address = NULL;
     }
 
     /* init config */
