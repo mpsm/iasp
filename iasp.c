@@ -465,12 +465,34 @@ static int main_cd(const modecontext_t *ctx)
     }
 
     {
-        const iasp_session_t *tpses;
+        const iasp_session_t *tpses, *peerses;
         
+        /* set TP session */
         tpses = iasp_session_start(ctx->address, &tpaddr);
         if(!event_wait(tpses, SESSION_EVENT_ESTABLISHED, 3)) {
             debug_log("Could not establish TP session.\n");
             goto exit;
+        }
+
+        /* set peer session */
+        if(ctx->peer_address != NULL) {
+            peerses = iasp_session_start(ctx->address, ctx->peer_address);
+            if(peerses == NULL) {
+                debug_log("Could not create peer session.\n");
+                goto exit;
+            }
+
+            if(!event_wait(peerses, SESSION_EVENT_ESTABLISHED, 5)) {
+                debug_log("Could not establish peer session.\n");
+                goto exit;
+            }
+        }
+    }
+
+    {
+        /* process incoming messages */
+        for(;;) {
+            iasp_session_handle_any();
         }
     }
 
