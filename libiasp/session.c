@@ -352,7 +352,9 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     memcpy(&i->id, iid, sizeof(iasp_identity_t));
 
     /* save initiator nonce */
-    memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
+    if(role != IASP_ROLE_CD) {
+        memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
+    }
 
     /* prepare for reply */
     iasp_reset_message();
@@ -362,16 +364,6 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* set and save own ID */
     crypto_get_id(s->spn, &msg.hmsg_resp_hello.id);
     memcpy(&s->sides[SESSION_SIDE_RESPONDER].id, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
-
-    /* add initiator NONCE */
-    memcpy(&msg.hmsg_resp_hello.inonce, &i->nonce, sizeof(iasp_nonce_t));
-
-    /* generate and set NONCE */
-    {
-        iasp_nonce_t *rn = &s->sides[SESSION_SIDE_RESPONDER].nonce;
-        crypto_gen_nonce(rn);
-        memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
-    }
 
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
@@ -386,7 +378,21 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         if(!iasp_trust_is_trusted_peer(&i->id)) {
             r->flags.bits.send_hint = true;
         }
+
+        /* add initiator NONCE */
+        memcpy(&msg.hmsg_resp_hello.inonce, &i->nonce, sizeof(iasp_nonce_t));
+
+        /* generate and set NONCE */
+        {
+            iasp_nonce_t *rn = &s->sides[SESSION_SIDE_RESPONDER].nonce;
+            crypto_gen_nonce(rn);
+            memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
+        }
     }
+    else {
+        /* TODO: add tp address and redirect */
+    }
+
     msg.hmsg_resp_hello.flags = r->flags;
 
     /* ================ ROLE DEPEND =================== */
