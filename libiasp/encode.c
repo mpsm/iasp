@@ -275,7 +275,7 @@ bool iasp_encode_hmsg_redirect(streambuf_t *sb, const iasp_hmsg_redirect_t * con
 {
     return iasp_encode_varint(sb, IASP_HMSG_REDIRECT) &&
             iasp_encode_id(sb, &msg->id) &&
-            iasp_encode_address(sb, &msg->tp_address);
+            iasp_encode_address(sb, msg->tp_address);
 }
 
 

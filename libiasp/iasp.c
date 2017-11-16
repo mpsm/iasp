@@ -13,6 +13,7 @@
 
 static iasp_role_t iasp_role;
 static binbuf_t iasp_hint;
+static const iasp_address_t *tpaddr;
 
 
 void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize)
@@ -53,5 +54,18 @@ bool iasp_get_hint(iasp_hint_t *h)
     memcpy(h->hintdata, iasp_hint.buf, iasp_hint.size);
 
     return true;
+}
+
+
+
+void iasp_set_tpaddr(const iasp_address_t *const _tpaddr)
+{
+    tpaddr = _tpaddr;
+}
+
+
+const iasp_address_t * iasp_get_tpaddr()
+{
+    return tpaddr;
 }
 

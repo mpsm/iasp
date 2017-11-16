@@ -360,10 +360,14 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     iasp_reset_message();
     iasp_proto_reset_payload();
     reply = iasp_proto_get_payload_sb();
+    s->pctx.answer = true;
 
     /* set and save own ID */
-    crypto_get_id(s->spn, &msg.hmsg_resp_hello.id);
-    memcpy(&s->sides[SESSION_SIDE_RESPONDER].id, &msg.hmsg_resp_hello.id, sizeof(iasp_identity_t));
+    {
+        iasp_identity_t *myid = role == IASP_ROLE_CD ? &msg.hmsg_redirect.id : &msg.hmsg_resp_hello.id;
+        crypto_get_id(s->spn, myid);
+        memcpy(&s->sides[SESSION_SIDE_RESPONDER].id, myid, sizeof(iasp_identity_t));
+    }
 
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
@@ -388,19 +392,28 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
             crypto_gen_nonce(rn);
             memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
         }
+
+        /* save flags */
+        msg.hmsg_resp_hello.flags = r->flags;
+
+        /* send responder hello */
+        return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
+                iasp_proto_send(&s->pctx, reply);
     }
     else {
-        /* TODO: add tp address and redirect */
+        const iasp_address_t *tpaddr;
+
+        /* add TP address and redirect */
+        tpaddr = iasp_get_tpaddr();
+        if(tpaddr == NULL) {
+            return false;
+        }
+        msg.hmsg_redirect.tp_address = tpaddr;
+
+        /* send redirect message */
+        return iasp_encode_hmsg_redirect(sb, &msg.hmsg_redirect);
     }
-
-    msg.hmsg_resp_hello.flags = r->flags;
-
     /* ================ ROLE DEPEND =================== */
-
-    /* send responder hello */
-    s->pctx.answer = true;
-    return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
-            iasp_proto_send(&s->pctx, reply);
 }
 
 

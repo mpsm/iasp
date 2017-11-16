@@ -12,10 +12,16 @@
 
 
 void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize);
+
+/* set/get hint */
 void iasp_set_hint(const char *s);
 bool iasp_get_hint(iasp_hint_t *h);
+
+/* get my role */
 iasp_role_t iasp_get_role(void);
 
-
+/* get/set TP addres */
+void iasp_set_tpaddr(const iasp_address_t *const tpaddr);
+const iasp_address_t * iasp_get_tpaddr(void);
 
 #endif

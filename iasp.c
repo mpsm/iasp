@@ -452,6 +452,7 @@ static int main_cd(const modecontext_t *ctx)
         }
 
         debug_log("CD: Trust Point address: %s\n", tpaddress_str);
+        iasp_set_tpaddr(&tpaddr);
     }
 
     /* set trusted TP */
