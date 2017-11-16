@@ -39,7 +39,7 @@ static iasp_role_t role;
 static void iasp_reset_message(void);
 static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
-
+static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 
 /* message handlers */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
@@ -1040,6 +1040,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
 static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const sb)
 {
     iasp_session_side_data_t *i, *r;
+    iasp_session_t *redirect;
 
     /* decode message */
     if(!iasp_decode_hmsg_redirect(sb, &msg.hmsg_redirect)) {
@@ -1066,7 +1067,43 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
     /* copy peers ID */
     memcpy(&r->id, &msg.hmsg_redirect.id, sizeof(iasp_identity_t));
 
-    /* TODO: check sessions */
-    /* establish new session if there is no previously established */
-    return iasp_session_start(&s->pctx.addr, msg.hmsg_redirect.tp_address);
+    /* find session for obtained redirection */
+    if((redirect = iasp_session_by_peer(msg.hmsg_redirect.tp_address)) == NULL) {
+        /* establish new session if there is no previously established */
+        debug_log("Cannot find session for redirect address.\n");
+        /* discard const qualifier for private usage */
+        redirect = (iasp_session_t *)iasp_session_start(&s->pctx.addr, msg.hmsg_redirect.tp_address);
+        if(redirect == NULL) {
+            debug_log("Cannot create redirect session.\n");
+            return false;
+        }
+    }
+
+    /* save redirection */
+    s->redirect = redirect;
+
+    return true;
+}
+
+
+static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer)
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        iasp_session_t *s = &sessions[i];
+
+        /* skip inactive sessions */
+        if(s->active) {
+            continue;
+        }
+
+        /* check peer address */
+        if(iasp_network_address_equal(&s->pctx.peer, peer)) {
+            return s;
+        }
+    }
+
+    /* nothing found */
+    return NULL;
 }

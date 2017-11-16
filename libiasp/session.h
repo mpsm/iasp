@@ -49,7 +49,7 @@ typedef enum {
 } iasp_session_event_t;
 
 
-typedef struct {
+typedef struct _iasp_session_t {
     bool active;
     iasp_proto_ctx_t pctx;
     iasp_salt_t salt;
@@ -59,6 +59,9 @@ typedef struct {
 
     /* negotiation sides data */
     iasp_session_side_data_t sides[SESSION_SIDE_COUNT];
+
+    /* redirected session pointer */
+    struct _iasp_session_t *redirect;
 
     /* auxiliary data, mode specific */
     void *aux;
