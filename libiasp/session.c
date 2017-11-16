@@ -46,6 +46,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const)
 static bool iasp_handler_resp_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_init_auth(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_resp_auth(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_redirect(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -63,6 +64,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
         {0, NULL},
 };
 
@@ -179,12 +181,6 @@ const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp
     }
 
     return s;
-}
-
-
-void iasp_session_respond(iasp_session_t * const this)
-{
-    /* TODO: implement */
 }
 
 
@@ -1040,3 +1036,37 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     return true;
 }
 
+
+static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const sb)
+{
+    iasp_session_side_data_t *i, *r;
+
+    /* decode message */
+    if(!iasp_decode_hmsg_redirect(sb, &msg.hmsg_redirect)) {
+        return false;
+    }
+
+    /* get sides */
+    i = &s->sides[SESSION_SIDE_INITIATOR];
+    r = &s->sides[SESSION_SIDE_RESPONDER];
+
+    /* event callback */
+    if(event_cb != NULL) {
+        event_cb(s, SESSION_EVENT_REDIRECT);
+    }
+
+    /* set SPN */
+    s->spn = msg.hmsg_redirect.id.spn;
+
+    /* get my ID */
+    if(!crypto_get_id(s->spn, &i->id)) {
+        return false;
+    }
+
+    /* copy peers ID */
+    memcpy(&r->id, &msg.hmsg_redirect.id, sizeof(iasp_identity_t));
+
+    /* TODO: check sessions */
+    /* establish new session if there is no previously established */
+    return iasp_session_start(&s->pctx.addr, msg.hmsg_redirect.tp_address);
+}

@@ -42,6 +42,7 @@ typedef enum {
 typedef enum {
     SESSION_EVENT_ESTABLISHED,
     SESSION_EVENT_TERMINATED,
+    SESSION_EVENT_REDIRECT,
 
     /* sentinel */
     SESSION_EVENT_MAX
