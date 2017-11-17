@@ -74,7 +74,7 @@ typedef struct {
 
 typedef struct {
     iasp_identity_t         id;
-    const iasp_address_t *  tp_address;
+    iasp_address_t          tp_address;
 } iasp_hmsg_redirect_t;
 
 

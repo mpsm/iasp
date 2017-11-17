@@ -592,6 +592,10 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
             debug_log("Session terminated.\n");
             break;
 
+        case SESSION_EVENT_REDIRECT:
+            debug_log("Session redirect.\n");
+            break;
+
         default:
             debug_log("Unknown event!\n");
     }

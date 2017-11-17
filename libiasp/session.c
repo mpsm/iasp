@@ -75,6 +75,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
+        {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
         {0, NULL},
 };
 
@@ -393,8 +394,9 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         msg.hmsg_resp_hello.flags = r->flags;
 
         /* send responder hello */
-        return iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello) &&
-                iasp_proto_send(&s->pctx, reply);
+        if(!iasp_encode_hmsg_resp_hello(reply, &msg.hmsg_resp_hello)) {
+            abort();
+        }
     }
     else {
         const iasp_address_t *tpaddr;
@@ -404,12 +406,19 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         if(tpaddr == NULL) {
             return false;
         }
-        msg.hmsg_redirect.tp_address = tpaddr;
+
+        /* deep copy (risk considered) */
+        memcpy(&msg.hmsg_redirect.tp_address, tpaddr, sizeof(iasp_address_t));
 
         /* send redirect message */
-        return iasp_encode_hmsg_redirect(sb, &msg.hmsg_redirect);
+        if(!iasp_encode_hmsg_redirect(sb, &msg.hmsg_redirect)) {
+            abort();
+        }
     }
     /* ================ ROLE DEPEND =================== */
+
+    /* send reply */
+    return iasp_proto_send(&s->pctx, reply);
 }
 
 
@@ -1068,11 +1077,11 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
     memcpy(&r->id, &msg.hmsg_redirect.id, sizeof(iasp_identity_t));
 
     /* find session for obtained redirection */
-    if((redirect = iasp_session_by_peer(msg.hmsg_redirect.tp_address)) == NULL) {
+    if((redirect = iasp_session_by_peer(&msg.hmsg_redirect.tp_address)) == NULL) {
         /* establish new session if there is no previously established */
         debug_log("Cannot find session for redirect address.\n");
         /* discard const qualifier for private usage */
-        redirect = (iasp_session_t *)iasp_session_start(&s->pctx.addr, msg.hmsg_redirect.tp_address);
+        redirect = (iasp_session_t *)iasp_session_start(&s->pctx.addr, &msg.hmsg_redirect.tp_address);
         if(redirect == NULL) {
             debug_log("Cannot create redirect session.\n");
             return false;
@@ -1094,7 +1103,7 @@ static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer)
         iasp_session_t *s = &sessions[i];
 
         /* skip inactive sessions */
-        if(s->active) {
+        if(!s->active) {
             continue;
         }
 
