@@ -1081,15 +1081,41 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
         /* establish new session if there is no previously established */
         debug_log("Cannot find session for redirect address.\n");
         /* discard const qualifier for private usage */
-        redirect = (iasp_session_t *)iasp_session_start(&s->pctx.addr, &msg.hmsg_redirect.tp_address);
-        if(redirect == NULL) {
+        s->redirect = (iasp_session_t *)iasp_session_start(&s->pctx.addr, &msg.hmsg_redirect.tp_address);
+        if(s->redirect == NULL) {
             debug_log("Cannot create redirect session.\n");
             return false;
         }
     }
+    else {
+        streambuf_t *keyreq;
+        iasp_mgmt_req_session_t *m = &msg.mgmt_req;
 
-    /* save redirection */
-    s->redirect = redirect;
+        /* save redirection */
+        s->redirect = redirect;
+
+        /* prepare for key request */
+        iasp_reset_message();
+        iasp_proto_reset_payload();
+        keyreq = iasp_proto_get_payload_sb();
+
+        /* add peer address */
+        m->peer_address = &s->pctx.peer;
+
+        /* check if my address is needed */
+        if(!iasp_network_address_equal(&s->pctx.addr, &s->redirect->pctx.addr)) {
+            m->has_my_address = true;
+            m->my_address = &s->pctx.addr;
+        }
+
+        /* generate SPI from previously generated NONCE */
+        memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+        memcpy(&m->spi, &i->spi, sizeof(iasp_spi_t));
+
+        /* send key request */
+        s->redirect->pctx.answer = false;
+        return iasp_encode_mgmt_req_session(keyreq, m) && iasp_proto_send(&s->redirect->pctx, keyreq);
+    }
 
     return true;
 }
