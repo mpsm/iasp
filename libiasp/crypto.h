@@ -36,6 +36,7 @@ size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
 /* misc */
 bool crypto_add_key(binbuf_t * const pkey);
 bool crypto_gen_nonce(iasp_nonce_t *nonce);
+bool crypto_gen_key(iasp_spn_code_t spn, iasp_key_t *const key);
 iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
 
 /* public keys */

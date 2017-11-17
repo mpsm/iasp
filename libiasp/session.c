@@ -40,13 +40,17 @@ static void iasp_reset_message(void);
 static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
+static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
 
-/* message handlers */
+/* message handlers - handshake */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_resp_hello(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_init_auth(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_resp_auth(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_redirect(iasp_session_t * const, streambuf_t * const);
+
+/* message handlers - management */
+static bool iasp_handler_mgmt_req(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -86,6 +90,7 @@ static const session_handler_lookup_t tp_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_HELLO), iasp_handler_resp_hello},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_REQ), iasp_handler_mgmt_req},
         {0, NULL},
 };
 
@@ -1141,4 +1146,57 @@ static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer)
 
     /* nothing found */
     return NULL;
+}
+
+
+static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer)
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        iasp_session_t *s = &sessions[i];
+
+        /* skip inactive sessions */
+        if(!s->active) {
+            continue;
+        }
+
+        /* compare IP addresses */
+        if(memcmp(iasp_network_address_ip(&s->pctx.peer), iasp_network_address_ip(peer), sizeof(iasp_ip_t)) == 0) {
+            return s;
+        }
+    }
+
+    /* nothing found */
+    return NULL;
+}
+
+
+static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const sb)
+{
+    iasp_session_t *session_responder;
+    //iasp_key_t key;
+
+    /* assert TP role */
+    assert(role == IASP_ROLE_TP);
+
+    /* decode message */
+    if(!iasp_decode_mgmt_req_session(sb, &msg.mgmt_req)) {
+        return false;
+    }
+
+    /* find session for peer */
+    session_responder = iasp_session_by_peer_ip(msg.mgmt_req.peer_address);
+    if(session_responder == NULL) {
+        /* TODO: repond with error */
+        return false;
+    }
+#if 0
+    /* choose SPN for session */
+
+    /* generate key material */
+    //crypto_gen_key(msg.mgmt_req. &key);
+#endif
+
+    return true;
 }

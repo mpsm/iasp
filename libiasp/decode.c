@@ -521,3 +521,33 @@ bool iasp_decode_hmsg_redirect(streambuf_t *sb, iasp_hmsg_redirect_t * const msg
     return iasp_decode_id(sb, &msg->id, false) && iasp_decode_address(sb, &msg->tp_address);
 }
 
+
+bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * const msg)
+{
+    assert(msg != NULL);
+    iasp_address_t decode_address = {NULL};
+
+    /* decode mandatory fields */
+    if(!iasp_decode_spi(sb, &msg->spi) || !iasp_decode_address(sb, &decode_address)) {
+        return false;
+    }
+    memcpy(msg->peer_address, &decode_address, sizeof(iasp_address_t));
+
+    /* if there is something else it is inititator address */
+    memset(&decode_address, 0, sizeof(iasp_address_t));
+    if(!streambuf_read_empty(sb)) {
+        if(!iasp_decode_address(sb, &decode_address)) {
+            return false;
+        }
+        msg->has_my_address = true;
+        memcpy(msg->my_address, &decode_address, sizeof(iasp_address_t));
+    }
+
+    return true;
+}
+
+
+bool iasp_decode_mgmt_install_session(streambuf_t *sb, iasp_mgmt_install_session_t * const msg)
+{
+    return false;
+}
