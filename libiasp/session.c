@@ -348,6 +348,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 
     /* decode message */
     if(!iasp_decode_hmsg_init_hello(sb, &msg.hmsg_init_hello)) {
+        debug_log("Cannot decode init hello message.\n");
         return false;
     }
 
@@ -361,6 +362,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* choose spn */
     s->spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
     if(s->spn == IASP_SPN_NONE) {
+        debug_log("Unable choose SPN.\n");
         return false;
     }
 
@@ -372,14 +374,12 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         }
     }
     if(iid == NULL) {
-        return false;
+        abort();
     }
     memcpy(&i->id, iid, sizeof(iasp_identity_t));
 
     /* save initiator nonce */
-    if(role != IASP_ROLE_CD) {
-        memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
-    }
+    memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
 
     /* save peer's IDs for child session negotiation */
     if(role == IASP_ROLE_TP) {
@@ -396,8 +396,11 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     {
         iasp_identity_t *myid = role == IASP_ROLE_CD ? &msg.hmsg_redirect.id : &msg.hmsg_resp_hello.id;
         crypto_get_id(s->spn, myid);
-        memcpy(&s->sides[SESSION_SIDE_RESPONDER].id, myid, sizeof(iasp_identity_t));
+        memcpy(&r->id, myid, sizeof(iasp_identity_t));
     }
+
+    /* generate and set NONCE */
+    crypto_gen_nonce(&r->nonce);
 
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
@@ -407,15 +410,11 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
             r->flags.bits.send_hint = true;
         }
 
+        /* set nonce */
+        memcpy(&msg.hmsg_resp_hello.rnonce, &r->nonce, sizeof(iasp_nonce_t));
+
         /* add initiator NONCE */
         memcpy(&msg.hmsg_resp_hello.inonce, &i->nonce, sizeof(iasp_nonce_t));
-
-        /* generate and set NONCE */
-        {
-            iasp_nonce_t *rn = &s->sides[SESSION_SIDE_RESPONDER].nonce;
-            crypto_gen_nonce(rn);
-            memcpy(&msg.hmsg_resp_hello.rnonce, rn, sizeof(iasp_nonce_t));
-        }
 
         /* save flags */
         msg.hmsg_resp_hello.flags = r->flags;
@@ -431,6 +430,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         /* add TP address and redirect */
         tpaddr = iasp_get_tpaddr();
         if(tpaddr == NULL) {
+            debug_log("Cannot get TP address to redirect.\n");
             return false;
         }
 
@@ -625,6 +625,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
+        debug_log("Cannot decode init auth message.\n");
         return false;
     }
 
@@ -1364,13 +1365,13 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         memcpy(&i->id, &msg.mgmt_install.peer_id, sizeof(iasp_identity_t));
 
         /* set SALT */
-        memcpy(&s->salt, &msg.mgmt_install.skey.salt, sizeof(iasp_salt_t));
+        memcpy(&peer_session->salt, &msg.mgmt_install.skey.salt, sizeof(iasp_salt_t));
 
         /* set keys */
         i->key.spn = r->key.spn = peer_session->spn;
         i->key.keysize = r->key.keysize = keysize;
-        memcpy(&i->key, msg.mgmt_install.skey.ikey, keysize);
-        memcpy(&r->key, msg.mgmt_install.skey.rkey, keysize);
+        memcpy(i->key.keydata, msg.mgmt_install.skey.ikey, keysize);
+        memcpy(r->key.keydata, msg.mgmt_install.skey.rkey, keysize);
 
         /* set SPIs */
         memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));

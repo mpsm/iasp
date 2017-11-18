@@ -316,6 +316,7 @@ bool iasp_encode_skey(streambuf_t *sb, const iasp_skey_t * const skey)
 {
     return iasp_encode_field_code(sb, IASP_FIELD_SKEY) &&
             iasp_encode_spn(sb, skey->spn, true) &&
+            streambuf_write(sb, skey->salt.saltdata, sizeof(skey->salt.saltdata)) &&
             streambuf_write(sb, skey->ikey, skey->keylen) &&
             streambuf_write(sb, skey->rkey, skey->keylen);
 }

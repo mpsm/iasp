@@ -584,6 +584,11 @@ bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey)
     /* set key length */
     skey->keylen = crypto_get_key_size(skey->spn);
 
+    /* get SALT */
+    if(!streambuf_read(sb, skey->salt.saltdata, sizeof(skey->salt.saltdata))) {
+        return false;
+    }
+
     /* read actual keys */
     return streambuf_read(sb, skey->ikey, skey->keylen) && streambuf_read(sb, skey->rkey, skey->keylen);
 }
