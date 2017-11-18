@@ -1342,6 +1342,46 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         debug_log("Found session: %p.\n", peer_session);
     }
 
+    /* fill session info */
+    {
+        iasp_session_side_data_t *i, *r;
+        size_t keysize;
+
+        /* save SPN */
+        peer_session->spn = msg.mgmt_install.peer_id.spn;
+
+        /* get proper key size */
+        keysize = crypto_get_key_size(peer_session->spn);
+
+        /* extract side data */
+        i = &peer_session->sides[SESSION_SIDE_INITIATOR];
+        r = &peer_session->sides[SESSION_SIDE_RESPONDER];
+
+        /* get my id */
+        crypto_get_id(peer_session->spn, &r->id);
+
+        /* set peer's ID */
+        memcpy(&i->id, &msg.mgmt_install.peer_id, sizeof(iasp_identity_t));
+
+        /* set SALT */
+        memcpy(&s->salt, &msg.mgmt_install.skey.salt, sizeof(iasp_salt_t));
+
+        /* set keys */
+        i->key.spn = r->key.spn = peer_session->spn;
+        i->key.keysize = r->key.keysize = keysize;
+        memcpy(&i->key, msg.mgmt_install.skey.ikey, keysize);
+        memcpy(&r->key, msg.mgmt_install.skey.rkey, keysize);
+
+        /* set SPIs */
+        memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+        memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+    }
+
+    /* event notify */
+    if(event_cb != NULL) {
+        event_cb(peer_session, SESSION_EVENT_ESTABLISHED);
+    }
+
     return true;
 }
 
