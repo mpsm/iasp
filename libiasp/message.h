@@ -80,8 +80,8 @@ typedef struct {
 
 typedef struct {
     iasp_spi_t              spi;
-    iasp_address_t *        peer_address;
-    iasp_address_t *        my_address;
+    iasp_address_t          peer_address;
+    iasp_address_t          my_address;
     bool                    has_my_address;
 } iasp_mgmt_req_session_t;
 
@@ -89,8 +89,8 @@ typedef struct {
 typedef struct {
     iasp_identity_t         peer_id;
     iasp_spi_t              peer_spi;
-    iasp_address_t*         peer_address;
-    iasp_address_t*         your_address;
+    iasp_address_t          peer_address;
+    iasp_address_t          your_address;
     bool                    has_your_address;
 } iasp_mgmt_install_session_t;
 

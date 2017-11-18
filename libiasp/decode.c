@@ -531,7 +531,7 @@ bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * con
     if(!iasp_decode_spi(sb, &msg->spi) || !iasp_decode_address(sb, &decode_address)) {
         return false;
     }
-    memcpy(msg->peer_address, &decode_address, sizeof(iasp_address_t));
+    memcpy(&msg->peer_address, &decode_address, sizeof(iasp_address_t));
 
     /* if there is something else it is inititator address */
     memset(&decode_address, 0, sizeof(iasp_address_t));
@@ -540,7 +540,7 @@ bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * con
             return false;
         }
         msg->has_my_address = true;
-        memcpy(msg->my_address, &decode_address, sizeof(iasp_address_t));
+        memcpy(&msg->my_address, &decode_address, sizeof(iasp_address_t));
     }
 
     return true;

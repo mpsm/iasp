@@ -1116,12 +1116,12 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
         keyreq = iasp_proto_get_payload_sb();
 
         /* add peer address */
-        m->peer_address = &s->pctx.peer;
+        memcpy(&m->peer_address, &s->pctx.peer, sizeof(iasp_address_t));
 
         /* check if my address is needed */
         if(!iasp_network_address_equal(&s->pctx.addr, &s->redirect->pctx.addr)) {
             m->has_my_address = true;
-            m->my_address = &s->pctx.addr;
+            memcpy(&m->my_address, &s->pctx.addr, sizeof(iasp_address_t));
         }
 
         /* generate SPI from previously generated NONCE */
@@ -1130,6 +1130,7 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
 
         /* send key request */
         s->redirect->pctx.answer = false;
+        s->redirect->pctx.msg_type = IASP_MSG_MGMT;
         return iasp_encode_mgmt_req_session(keyreq, m) && iasp_proto_send(&s->redirect->pctx, keyreq);
     }
 
@@ -1195,13 +1196,15 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
 
     /* decode message */
     if(!iasp_decode_mgmt_req_session(sb, &msg.mgmt_req)) {
+        debug_log("Cannot decode session request message.\n");
         return false;
     }
 
     /* find session for peer */
-    session_responder = iasp_session_by_peer_ip(msg.mgmt_req.peer_address);
+    session_responder = iasp_session_by_peer_ip(&msg.mgmt_req.peer_address);
     if(session_responder == NULL) {
         /* TODO: repond with error */
+        debug_log("Cannot find responder session.\n");
         return false;
     }
 
@@ -1213,10 +1216,12 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     spn = crypto_choose_spn2(&tpdi->ids, &tpdr->ids);
     if(spn == IASP_SPN_NONE || spn == IASP_SPN_MAX) {
         /* TODO: error */
+        debug_log("Cannot find matching SPN for child session.\n");
         return false;
     }
     debug_log("SPN for child session chosen: ");
     debug_print_spn(spn);
+    debug_newline();
 
 #if 0
     /* generate key material */
