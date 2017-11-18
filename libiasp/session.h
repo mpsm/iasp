@@ -79,7 +79,7 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
 void iasp_session_set_cb(iasp_session_cb_t cb);
 
 /* per-session methods */
-void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, const iasp_address_t *peer_addr);
+void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr);
 void iasp_session_respond(iasp_session_t * const this);
 iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr);
 iasp_session_result_t iasp_session_handle_any(void);

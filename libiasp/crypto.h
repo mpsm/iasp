@@ -38,6 +38,7 @@ bool crypto_add_key(binbuf_t * const pkey);
 bool crypto_gen_nonce(iasp_nonce_t *nonce);
 bool crypto_gen_key(iasp_spn_code_t spn, iasp_key_t *const key);
 iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
+iasp_spn_code_t crypto_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids);
 
 /* public keys */
 void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys);

@@ -325,6 +325,42 @@ iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids)
 }
 
 
+iasp_spn_code_t crypto_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids)
+{
+    unsigned int i;
+
+    assert(iids != NULL);
+    assert(rids != NULL);
+
+    for(i = IASP_SPN_MAX - 1; i > IASP_SPN_NONE; i--) {
+        unsigned int j;
+
+        /* check if supported by peer */
+        for(j = 0; j < iids->id_count; ++j) {
+            if(iids->id[j].spn == i) {
+                /* found matching SPN */
+                break;
+            }
+        }
+
+        /* spn not found */
+        if(j == IASP_SPN_MAX) {
+            continue;
+        }
+
+        /* check other peer */
+        for(j = 0; j < rids->id_count; ++j) {
+            if(rids->id[j].spn == i) {
+                /* found matching SPN */
+                return i;
+            }
+        }
+    }
+
+    return IASP_SPN_NONE;
+}
+
+
 bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id)
 {
     const iasp_spn_support_t *s = crypto_get_supported_spn(spn_code);

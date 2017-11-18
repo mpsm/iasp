@@ -7,6 +7,7 @@
 #include "streambuf.h"
 #include "types.h"
 #include "tp.h"
+#include "ffd.h"
 #include "debug.h"
 #include "trust.h"
 #include "role.h"
@@ -127,7 +128,9 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
     for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
         if(sessions[i].active == false) {
             iasp_session_t *s = &sessions[i];
-            iasp_session_init(s, addr, peer);
+
+            iasp_session_init(s, role, addr, peer);
+            debug_log("Created new session: %p\n", s);
             return s;
         }
     }
@@ -136,7 +139,7 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
 }
 
 
-void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, const iasp_address_t *peer_addr)
+void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr)
 {
     assert(addr != NULL);
     assert(peer_addr != NULL);
@@ -147,6 +150,20 @@ void iasp_session_init(iasp_session_t * const this, const iasp_address_t *addr, 
     iasp_proto_ctx_init(&this->pctx);
     iasp_network_address_dup(addr, &this->pctx.addr);
     iasp_network_address_dup(peer_addr, &this->pctx.peer);
+
+    switch(srole) {
+        case IASP_ROLE_TP:
+        {
+            iasp_tpdata_t *tpd = NULL;
+
+            iasp_tpdata_init(&tpd);
+            this->aux = tpd;
+            break;
+        }
+
+        default:
+            break;
+    }
 }
 
 
@@ -301,7 +318,6 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
         }
 
         s = iasp_session_new(&pctx->addr, &pctx->peer);
-        debug_log("Created new session: %p\n", s);
         if(s == NULL) {
             return SESSION_CMD_NOMEM;
         }
@@ -358,6 +374,11 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
     }
 
+    /* save peer's IDs for child session negotiation */
+    if(role == IASP_ROLE_TP) {
+        iasp_tpdata_set_ids(s->aux, &msg.hmsg_init_hello.ids);
+    }
+
     /* prepare for reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
@@ -374,12 +395,6 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
     if(role != IASP_ROLE_CD) {
-        iasp_tpdata_t *tpd = NULL;
-
-        /* allocate TP data for future use */
-        iasp_tpdata_init(&tpd);
-        s->aux = tpd;
-
         /* set session flags */
         if(!iasp_trust_is_trusted_peer(&i->id)) {
             r->flags.bits.send_hint = true;
@@ -476,15 +491,11 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     /* ================ ROLE DEPEND =================== */
     i->flags.byte = 0;
     if(role != IASP_ROLE_CD) {
-        iasp_tpdata_t *tpd = NULL;
-
-        /* allocate TP data for future use */
-        iasp_tpdata_init(&tpd);
-        s->aux = tpd;
+        iasp_ffddata_t *ffd = (iasp_ffddata_t *)s->aux;
 
         /* set ephemeral key */
         msg.hmsg_init_auth.has_dhkey = true;
-        crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.dhkey, &tpd->ecdhe_ctx);
+        crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.dhkey, &ffd->ecdhe_ctx);
 
         if(!iasp_trust_is_trusted_peer(&r->id)) {
             i->flags.bits.send_hint = true;
@@ -746,10 +757,10 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     debug_log("Peer's signature match!\n");
 
     /* generate ephemeral key */
-    crypto_ecdhe_genkey(s->spn, NULL, &tpd->ecdhe_ctx);
+    crypto_ecdhe_genkey(s->spn, NULL, &tpd->ffd.ecdhe_ctx);
 
     /* generate shared secret */
-    if(!iasp_session_generate_secret(s, pkey, &tpd->ecdhe_ctx)) {
+    if(!iasp_session_generate_secret(s, pkey, &tpd->ffd.ecdhe_ctx)) {
         return false;
     }
 
@@ -763,7 +774,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     memcpy(&msg.hmsg_resp_auth.rnonce.data, r->nonce.data, sizeof(iasp_nonce_t));
 
     /* extract public part of ephemeral key */
-    if(!crypto_ecdhe_pkey(&tpd->ecdhe_ctx, &msg.hmsg_resp_auth.dhkey)) {
+    if(!crypto_ecdhe_pkey(&tpd->ffd.ecdhe_ctx, &msg.hmsg_resp_auth.dhkey)) {
         abort();
     }
 
@@ -992,7 +1003,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     /* get ephemeral key if possible */
     if(role != IASP_ROLE_CD) {
         iasp_tpdata_t *tpd = s->aux;
-        ecdhe_ctx = &tpd->ecdhe_ctx;
+        ecdhe_ctx = &tpd->ffd.ecdhe_ctx;
     }
 
     /* generate shared secret */
@@ -1175,6 +1186,8 @@ static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer
 static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const sb)
 {
     iasp_session_t *session_responder;
+    iasp_tpdata_t *tpdi, *tpdr;
+    iasp_spn_code_t spn;
     //iasp_key_t key;
 
     /* assert TP role */
@@ -1191,11 +1204,23 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
         /* TODO: repond with error */
         return false;
     }
-#if 0
-    /* choose SPN for session */
 
+    /* extract TP data */
+    tpdi = (iasp_tpdata_t *)s->aux;
+    tpdr = (iasp_tpdata_t *)session_responder->aux;
+
+    /* choose SPN for session */
+    spn = crypto_choose_spn2(&tpdi->ids, &tpdr->ids);
+    if(spn == IASP_SPN_NONE || spn == IASP_SPN_MAX) {
+        /* TODO: error */
+        return false;
+    }
+    debug_log("SPN for child session chosen: ");
+    debug_print_spn(spn);
+
+#if 0
     /* generate key material */
-    //crypto_gen_key(msg.mgmt_req. &key);
+    crypto_gen_key(msg.mgmt_req. &key);
 #endif
 
     return true;
