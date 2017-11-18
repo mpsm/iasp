@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "network.h"
+#include "session.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -21,6 +22,9 @@ void debug_print_id(const iasp_identity_t *id);
 void debug_print_pkey(const iasp_pkey_t *pkey);
 void debug_print_address(const iasp_address_t *addr);
 void debug_print_spn(const iasp_spn_code_t spn);
+void debug_print_session(const iasp_session_t * const s);
+void debug_print_key(const iasp_key_t * const key);
+void debug_print_spi(const iasp_spi_t * const spi);
 
 
 #elif IASP_DEBUG == 0
@@ -33,6 +37,10 @@ void debug_print_spn(const iasp_spn_code_t spn);
 #  define debug_print_pkey(X)       {}
 #  define debug_print_address(X)    {}
 #  define debug_print_spn(X)        {}
+#  define debug_print_session(X)    {}
+#  define debug_print_spi(X)        {}
+#  define debug_print_key(X)        {}
+
 
 #else
 #  error "Invalid IASP_DEBUG value"

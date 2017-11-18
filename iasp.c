@@ -586,6 +586,9 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
     switch(e) {
         case SESSION_EVENT_ESTABLISHED:
             debug_log("Session established.\n");
+            debug_newline();
+            debug_print_session(s);
+            debug_newline();
             break;
 
         case SESSION_EVENT_TERMINATED:

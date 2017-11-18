@@ -972,7 +972,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     }
 
     /* verify signature */
-    if(!crypto_verify_init(&r->id, s->peer_auth_meth)) {
+    if(!crypto_verify_init(&r->id, IASP_SIG_EC)) {
         return false;
     }
     byte = (uint8_t)s->spn;
