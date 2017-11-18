@@ -42,6 +42,7 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
+static iasp_session_t *iasp_session_by_address_pair(const iasp_address_t * const myaddress, const iasp_address_t * const peer);
 
 /* message handlers - handshake */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
@@ -1115,6 +1116,7 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
 
         /* save redirection */
         s->redirect = redirect;
+        debug_log("Redirecting session %p via %p.\n", s, redirect);
 
         /* prepare for key request */
         iasp_reset_message();
@@ -1181,6 +1183,28 @@ static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer
 
         /* compare IP addresses */
         if(memcmp(iasp_network_address_ip(&s->pctx.peer), iasp_network_address_ip(peer), sizeof(iasp_ip_t)) == 0) {
+            return s;
+        }
+    }
+
+    /* nothing found */
+    return NULL;
+}
+
+static iasp_session_t *iasp_session_by_address_pair(const iasp_address_t * const myaddress, const iasp_address_t * const peer)
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        iasp_session_t *s = &sessions[i];
+
+        /* skip inactive sessions */
+        if(!s->active) {
+            continue;
+        }
+
+        /* compare IP addresses */
+        if(iasp_network_address_equal(&s->pctx.addr, myaddress) && iasp_network_address_equal(&s->pctx.peer, peer)) {
             return s;
         }
     }
@@ -1290,6 +1314,8 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
 
 static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * const sb)
 {
+    iasp_session_t * peer_session;
+    iasp_address_t * my_address;
 
     if(!iasp_decode_mgmt_install_session(sb, &msg.mgmt_install)) {
         debug_log("Failed to decode session install message.\n");
@@ -1298,7 +1324,23 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
 
     debug_log("Received session install message.\n");
 
+    /* determine your address for new session */
+    my_address = msg.mgmt_install.has_your_address ? &msg.mgmt_install.your_address : &s->pctx.addr;
 
+    /* find peer session */
+    peer_session = iasp_session_by_address_pair(my_address, &msg.mgmt_install.peer_address);
+
+    /* if session cannot be found - create new one */
+    if(peer_session == NULL) {
+        peer_session = iasp_session_new(my_address, &msg.mgmt_install.peer_address);
+        if(peer_session == NULL) {
+            debug_log("Failed to create new session.\n");
+            return false;
+        }
+    }
+    else {
+        debug_log("Found session: %p.\n", peer_session);
+    }
 
     return true;
 }
