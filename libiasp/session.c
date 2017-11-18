@@ -1570,8 +1570,7 @@ static bool iasp_handler_mgmt_token(iasp_session_t * const s, streambuf_t * cons
     }
 
     s->token = msg.token;
-
-    return true;
+    return iasp_send_status(s, IASP_STATUS_OK);
 }
 
 
@@ -1581,5 +1580,6 @@ static bool iasp_handler_mgmt_status(iasp_session_t * const s, streambuf_t * con
         debug_log("Cannot decode status message.\n");
         return false;
     }
+
     return true;
 }
