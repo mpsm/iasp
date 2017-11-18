@@ -28,6 +28,7 @@ bool iasp_decode_session_flags(streambuf_t *sb, iasp_session_flags_t * const fla
 bool iasp_decode_hint(streambuf_t *sb, iasp_hint_t * const hint);
 bool iasp_decode_address(streambuf_t *sb, iasp_address_t * const address);
 bool iasp_decode_spi(streambuf_t *sb, iasp_spi_t * const spi);
+bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey);
 
 /* message decoding */
 bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const msg);

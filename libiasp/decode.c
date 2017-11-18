@@ -549,5 +549,41 @@ bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * con
 
 bool iasp_decode_mgmt_install_session(streambuf_t *sb, iasp_mgmt_install_session_t * const msg)
 {
-    return false;
+    /* decode mandatory fields */
+    if(!iasp_decode_id(sb, &msg->peer_id, false) || !iasp_decode_spi(sb, &msg->peer_spi) ||
+            !iasp_decode_skey(sb, &msg->skey) || !iasp_decode_address(sb, &msg->peer_address)) {
+        return false;
+    }
+
+    /* decode optional my address */
+    if(!streambuf_read_empty(sb)) {
+        if(!iasp_decode_address(sb, &msg->your_address)) {
+            return false;
+        }
+        msg->has_your_address = true;
+    }
+
+    return true;
+}
+
+
+bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey)
+{
+    assert(skey != NULL);
+
+    /* check field code */
+    if(!iasp_decode_check_field_code(sb, IASP_FIELD_SKEY)) {
+        return false;
+    }
+
+    /* decode SPN */
+    if(!iasp_decode_spn(sb, &skey->spn)) {
+        return false;
+    }
+
+    /* set key length */
+    skey->keylen = crypto_get_key_size(skey->spn);
+
+    /* read actual keys */
+    return streambuf_read(sb, skey->ikey, skey->keylen) && streambuf_read(sb, skey->rkey, skey->keylen);
 }

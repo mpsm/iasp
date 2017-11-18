@@ -52,6 +52,7 @@ static bool iasp_handler_redirect(iasp_session_t * const, streambuf_t * const);
 
 /* message handlers - management */
 static bool iasp_handler_mgmt_req(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_mgmt_install(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -70,6 +71,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
         {0, NULL},
 };
 
@@ -81,6 +83,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
         {0, NULL},
 };
 
@@ -322,6 +325,9 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
             return SESSION_CMD_NOMEM;
         }
     }
+
+    /* reset decode space */
+    iasp_reset_message();
 
     /* handle message */
     if(lookup->handler(s, payload) == false) {
@@ -1280,3 +1286,20 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     return iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
             iasp_proto_send(&session_responder->pctx, keyinstall);
 }
+
+
+static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * const sb)
+{
+
+    if(!iasp_decode_mgmt_install_session(sb, &msg.mgmt_install)) {
+        debug_log("Failed to decode session install message.\n");
+        return false;
+    }
+
+    debug_log("Received session install message.\n");
+
+
+
+    return true;
+}
+
