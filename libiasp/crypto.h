@@ -22,6 +22,12 @@ typedef struct{
     iasp_spn_code_t spn;
 } crypto_ecdhe_context_t;
 
+/* encrypt / decrypt */
+bool crypto_encrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * const a, binbuf_t * const n,
+        const uint8_t * const k, binbuf_t *c);
+bool crypto_decrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * const a, binbuf_t * const n,
+        const uint8_t * const k, binbuf_t *c);
+
 
 /* init and destroy */
 bool crypto_init(void);

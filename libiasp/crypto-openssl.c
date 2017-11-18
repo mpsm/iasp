@@ -4,6 +4,7 @@
 #include "types.h"
 #include "config.h"
 #include "debug.h"
+#include "iasp.h"
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
@@ -33,16 +34,17 @@ typedef struct {
     int nid_dgst;
     size_t keysize;
     void *(*kdf)(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
+    const EVP_CIPHER *(*ccm)(void);
 } crypto_context_t;
 static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 static void *kdf_spn2(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const binbuf);
 
 static const crypto_context_t spn_map[] = {
-        {IASP_SPN_NONE, 0, 0, 0, 0, 0, NULL},
-        {IASP_SPN_128, NID_X9_62_prime256v1, 32, 32, NID_sha256, 16, kdf_spn1},
-        {IASP_SPN_256, NID_secp521r1, 66, 64, NID_sha512, 32, kdf_spn2},
-        {IASP_SPN_MAX, 0, 0, 0, 0, 0, NULL},
+        {IASP_SPN_NONE, 0, 0, 0, 0, 0, NULL, NULL},
+        {IASP_SPN_128, NID_X9_62_prime256v1, 32, 32, NID_sha256, 16, kdf_spn1, EVP_aes_128_ccm},
+        {IASP_SPN_256, NID_secp521r1, 66, 64, NID_sha512, 32, kdf_spn2, EVP_aes_256_ccm},
+        {IASP_SPN_MAX, 0, 0, 0, 0, 0, NULL, NULL},
 };
 
 
@@ -1039,4 +1041,126 @@ const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t *
     }
 
     return NULL;
+}
+
+
+bool crypto_encrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * const a, binbuf_t * const n,
+        const uint8_t * const k, binbuf_t *c)
+{
+    EVP_CIPHER_CTX *ctx;
+    int outl;
+
+    /* context init */
+    if(!(ctx = EVP_CIPHER_CTX_new())) {
+        return false;
+    }
+
+    /* set CCM algo with SPN */
+    if(EVP_EncryptInit_ex(ctx, spn_map[spn].ccm(), NULL, NULL, NULL) != 1) {
+        return false;
+    }
+
+    /* set IV len */
+    if(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, n->size, NULL) != 1) {
+        return false;
+    }
+
+    /* Set tag length */
+    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, IASP_CRYPTO_TAG_LENGTH, NULL);
+
+    /* init key and iv */
+    if(EVP_EncryptInit_ex(ctx, NULL, NULL, k, n->buf) != 1) {
+        return false;
+    }
+
+    /* set plaintext length */
+    if(EVP_EncryptUpdate(ctx, NULL, &outl, NULL, p->size) != 1) {
+        return false;
+    }
+
+    /* set AAD data */
+    if(a != NULL && a->buf != NULL && a->size > 0) {
+        if(EVP_EncryptUpdate(ctx, NULL, &outl, a->buf, a->size) != 1) {
+            return false;
+        }
+    }
+
+    /* encrypt message */
+    if(EVP_EncryptUpdate(ctx, c->buf, &outl, p->buf, p->size) != 1) {
+        return false;
+    }
+    c->size = outl;
+
+    /* finalize encryption */
+    if(EVP_EncryptFinal_ex(ctx, c->buf + c->size, &outl) != 1) {
+        return false;
+    }
+    c->size += outl;
+
+    /* get tag */
+    if(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_GET_TAG, IASP_CRYPTO_TAG_LENGTH, c->buf + c->size) != 1) {
+        return false;
+    }
+    c->size += IASP_CRYPTO_TAG_LENGTH;
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return true;
+}
+
+
+bool crypto_decrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * const a, binbuf_t * const n,
+        const uint8_t * const k, binbuf_t *c)
+{
+    EVP_CIPHER_CTX *ctx;
+    int outl;
+
+    /* init context */
+    if(!(ctx = EVP_CIPHER_CTX_new())) {
+        return false;
+    }
+
+    /* set CCM algo with SPN */
+    if(EVP_DecryptInit_ex(ctx, spn_map[spn].ccm(), NULL, NULL, NULL) != 1) {
+        return false;
+    }
+
+    /* set IV */
+    if(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, n->size, NULL) != 1) {
+        return false;
+    }
+
+    /* set expected tag value. */
+    if(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, IASP_CRYPTO_TAG_LENGTH, c->buf + c->size - IASP_CRYPTO_TAG_LENGTH) != 1) {
+        return false;
+    }
+
+    /* set key and IV */
+    if(EVP_DecryptInit_ex(ctx, NULL, NULL, k, n->buf) != 1) {
+        return false;
+    }
+
+    /* set ciphertext length */
+    if(EVP_DecryptUpdate(ctx, NULL, &outl, NULL, c->size - IASP_CRYPTO_TAG_LENGTH) != 1) {
+        return false;
+    }
+
+    /* set AAD data */
+    if(a != NULL && a->buf != NULL && a->size > 0) {
+        if(EVP_EncryptUpdate(ctx, NULL, &outl, a->buf, a->size) != 1) {
+            return false;
+        }
+    }
+
+    /* decrypt, get plaintext */
+    if(EVP_DecryptUpdate(ctx, p->buf, &outl, c->buf, c->size - IASP_CRYPTO_TAG_LENGTH) <= 0) {
+        return false;
+    }
+    p->size = outl;
+
+    /* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+    return true;
 }

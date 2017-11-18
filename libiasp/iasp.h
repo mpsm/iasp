@@ -9,6 +9,7 @@
 #include <stddef.h>
 
 #define IASP_DEFAULT_PORT (35491)
+#define IASP_CRYPTO_TAG_LENGTH (4)
 
 
 void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize);
