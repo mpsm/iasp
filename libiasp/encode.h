@@ -28,6 +28,8 @@ bool iasp_encode_dhkey(streambuf_t *sb, const iasp_pkey_t *pkey);
 bool iasp_encode_address(streambuf_t *sb, const iasp_address_t * const address);
 bool iasp_encode_spi(streambuf_t *sb, const iasp_spi_t spi);
 bool iasp_encode_skey(streambuf_t *sb, const iasp_skey_t * const skey);
+bool iasp_encode_status(streambuf_t *sb, const iasp_status_t status);
+bool iasp_encode_token(streambuf_t *sb, const iasp_token_t token);
 
 /* message encoding */
 bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_hmsg_init_hello_t * const msg);
@@ -38,5 +40,8 @@ bool iasp_encode_hmsg_redirect(streambuf_t *sb, const iasp_hmsg_redirect_t * con
 bool iasp_encode_mgmt_req_session(streambuf_t *sb, const iasp_mgmt_req_session_t * const msg);
 bool iasp_encode_mgmt_install_session(streambuf_t *sb, const iasp_mgmt_install_session_t * const msg);
 bool iasp_encode_mgmt_spi(streambuf_t *sb, const iasp_mgmt_spi_t * const msg);
+bool iasp_encode_mgmt_token(streambuf_t *sb, const iasp_mgmt_token_t * const msg);
+bool iasp_encode_mgmt_status(streambuf_t *sb, const iasp_mgmt_status_t * const msg);
+
 
 #endif

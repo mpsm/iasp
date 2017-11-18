@@ -36,6 +36,14 @@ typedef enum {
 } iasp_session_side_t;
 
 
+typedef enum {
+    IASP_STATUS_OK = 0,
+    IASP_STATUS_ERROR = 1,
+
+    IASP_STATUS_MAX
+} iasp_status_t;
+
+
 typedef union {
     struct {
         unsigned char send_pkey:1;
@@ -138,5 +146,7 @@ typedef struct {
     uint8_t rkey[IASP_MAX_KEY_SIZE];
 } iasp_skey_t;
 
+
+typedef uint32_t iasp_token_t;
 
 #endif

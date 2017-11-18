@@ -29,6 +29,8 @@ bool iasp_decode_hint(streambuf_t *sb, iasp_hint_t * const hint);
 bool iasp_decode_address(streambuf_t *sb, iasp_address_t * const address);
 bool iasp_decode_spi(streambuf_t *sb, iasp_spi_t * const spi);
 bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey);
+bool iasp_decode_status(streambuf_t *sb, iasp_status_t * const status);
+bool iasp_decode_token(streambuf_t *sb, iasp_token_t * const token);
 
 /* message decoding */
 bool iasp_decode_hmsg_init_hello(streambuf_t *sb, iasp_hmsg_init_hello_t * const msg);
@@ -39,5 +41,7 @@ bool iasp_decode_hmsg_redirect(streambuf_t *sb, iasp_hmsg_redirect_t * const msg
 bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * const msg);
 bool iasp_decode_mgmt_install_session(streambuf_t *sb, iasp_mgmt_install_session_t * const msg);
 bool iasp_decode_mgmt_spi(streambuf_t *sb, iasp_mgmt_spi_t * const msg);
+bool iasp_decode_mgmt_token(streambuf_t *sb, iasp_mgmt_token_t * const msg);
+bool iasp_decode_mgmt_status(streambuf_t *sb, iasp_mgmt_status_t * const msg);
 
 #endif

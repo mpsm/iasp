@@ -598,3 +598,54 @@ bool iasp_decode_mgmt_spi(streambuf_t *sb, iasp_mgmt_spi_t * const msg)
 {
     return iasp_decode_spi(sb, &msg->spi);
 }
+
+
+bool iasp_decode_status(streambuf_t *sb, iasp_status_t * const status)
+{
+    uint8_t byte;
+
+    assert(status != NULL);
+
+    if(!(iasp_decode_check_field_code(sb, IASP_FIELD_OPSTATUS) &&
+            streambuf_read(sb, &byte, sizeof(byte)))) {
+        return false;
+    }
+
+    /* check value */
+    if(byte >= IASP_STATUS_MAX) {
+        return false;
+    }
+
+    /* save value */
+    *status = (iasp_status_t)byte;
+    return false;
+}
+
+
+bool iasp_decode_token(streambuf_t *sb, iasp_token_t * const token)
+{
+    uint32_t val;
+
+    assert(token != NULL);
+
+    if(!(iasp_decode_check_field_code(sb, IASP_FIELD_TOKEN) && streambuf_read(sb, (uint8_t *)&val, sizeof(val)))) {
+        return false;
+    }
+
+    /* save value */
+    *token = ntohl(val);
+    return true;
+}
+
+
+bool iasp_decode_mgmt_token(streambuf_t *sb, iasp_mgmt_token_t * const msg)
+{
+    return iasp_decode_token(sb, &msg->token);
+}
+
+
+bool iasp_decode_mgmt_status(streambuf_t *sb, iasp_mgmt_status_t * const msg)
+{
+
+    return iasp_decode_status(sb, &msg->status);
+}

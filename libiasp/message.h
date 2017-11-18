@@ -1,6 +1,7 @@
 #ifndef __IASP_MESSAGE_H__
 #define __IASP_MESSAGE_H__
 
+#include "types.h"
 
 #include <stdbool.h>
 
@@ -18,6 +19,8 @@ typedef enum {
     IASP_MGMT_REQ = 1,
     IASP_MGMT_INSTALL = 2,
     IASP_MGMT_SPI = 3,
+    IASP_MGMT_STATUS = 4,
+    IASP_MGMT_TOKEN = 5,
 } iasp_mgmt_msg_code_t;
 
 
@@ -101,6 +104,17 @@ typedef struct {
     iasp_spi_t              spi;
 } iasp_mgmt_spi_t;
 
+
+typedef struct {
+    iasp_status_t           status;
+} iasp_mgmt_status_t;
+
+
+typedef struct {
+    iasp_token_t            token;
+} iasp_mgmt_token_t;
+
+
 typedef union {
     /* handshake protocol */
     iasp_hmsg_init_hello_t  hmsg_init_hello;
@@ -110,9 +124,17 @@ typedef union {
     iasp_hmsg_redirect_t    hmsg_redirect;
 
     /* management protocol */
-    iasp_mgmt_install_session_t mgmt_install;
-    iasp_mgmt_req_session_t     mgmt_req;
-    iasp_mgmt_spi_t             mgmt_spi;
+    struct {
+        bool has_token;
+        iasp_token_t token;
+        union {
+            iasp_mgmt_install_session_t mgmt_install;
+            iasp_mgmt_req_session_t     mgmt_req;
+            iasp_mgmt_spi_t             mgmt_spi;
+            iasp_mgmt_status_t          mgmt_status;
+            iasp_mgmt_token_t           mgmt_token_t;
+        };
+    };
 } iasp_msg_storage_t;
 
 

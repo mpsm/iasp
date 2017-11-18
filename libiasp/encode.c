@@ -327,3 +327,33 @@ bool iasp_encode_mgmt_spi(streambuf_t *sb, const iasp_mgmt_spi_t * const msg)
     return iasp_encode_varint(sb, IASP_MGMT_SPI) &&
             iasp_encode_spi(sb, msg->spi);
 }
+
+
+bool iasp_encode_status(streambuf_t *sb, const iasp_status_t status)
+{
+    uint8_t bstatus = (uint8_t)status;
+
+    return iasp_encode_field_code(sb, IASP_FIELD_OPSTATUS) &&
+            streambuf_write(sb, &bstatus, sizeof(bstatus));
+}
+
+
+bool iasp_encode_token(streambuf_t *sb, const iasp_token_t token)
+{
+    uint32_t ntoken = htonl(token);
+
+    return iasp_encode_field_code(sb, IASP_FIELD_TOKEN) &&
+            streambuf_write(sb, (uint8_t *)&ntoken, sizeof(ntoken));
+}
+
+
+bool iasp_encode_mgmt_token(streambuf_t *sb, const iasp_mgmt_token_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_MGMT_TOKEN) && iasp_encode_token(sb, msg->token);
+}
+
+
+bool iasp_encode_mgmt_status(streambuf_t *sb, const iasp_mgmt_status_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_MGMT_STATUS) && iasp_encode_status(sb, msg->status);
+}
