@@ -43,6 +43,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
 static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_address_pair(const iasp_address_t * const myaddress, const iasp_address_t * const peer);
+static bool iasp_send_status(iasp_session_t * const s, iasp_status_t status);
 
 /* message handlers - handshake */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
@@ -55,6 +56,8 @@ static bool iasp_handler_redirect(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_req(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_install(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_spi(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_mgmt_token(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_mgmt_status(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -74,6 +77,8 @@ static const session_handler_lookup_t cd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
         {0, NULL},
 };
 
@@ -86,6 +91,8 @@ static const session_handler_lookup_t ffd_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_REDIRECT), iasp_handler_redirect},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
         {0, NULL},
 };
 
@@ -98,6 +105,8 @@ static const session_handler_lookup_t tp_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_REQ), iasp_handler_mgmt_req},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_SPI), iasp_handler_mgmt_spi},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
         {0, NULL},
 };
 
@@ -1266,7 +1275,9 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     /* find session for peer */
     session_responder = iasp_session_by_peer_ip(&msg.mgmt_req.peer_address);
     if(session_responder == NULL) {
-        /* TODO: repond with error */
+        if(!iasp_send_status(s, IASP_STATUS_ERROR)) {
+            debug_log("Cannot send error message to peer.\n");
+        }
         debug_log("Cannot find responder session.\n");
         return false;
     }
@@ -1278,7 +1289,9 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     /* choose SPN for session */
     spn = crypto_choose_spn2(&tpdi->ids, &tpdr->ids);
     if(spn == IASP_SPN_NONE || spn == IASP_SPN_MAX) {
-        /* TODO: error */
+        if(!iasp_send_status(s, IASP_STATUS_ERROR)) {
+            debug_log("Cannot send error message to peer.\n");
+        }
         debug_log("Cannot find matching SPN for child session.\n");
         return false;
     }
@@ -1440,13 +1453,13 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
                     iasp_proto_send(&s->pctx, reply);
 
         case SESSION_SIDE_INITIATOR:
-            /* TODO: reply with OK */
-            return true;
+            return iasp_send_status(s, IASP_STATUS_OK);
 
         default:
             abort();
     }
 
+    /* never reached */
     return false;
 }
 
@@ -1472,7 +1485,10 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     child = tpd->child;
     memcpy(&tpd->child->sides[SESSION_SIDE_RESPONDER].spi, &msg.mgmt_spi.spi, sizeof(iasp_spi_t));
 
-    /* TODO: reply with OK */
+    /* reply with OK */
+    if(!iasp_send_status(s, IASP_STATUS_OK)) {
+        return false;
+    }
 
     /* reset child infomation */
     tpd->child = NULL;
@@ -1527,5 +1543,43 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     /* TODO: destroy child session information */
     tpd->child = NULL;
 
+    return true;
+}
+
+
+static bool iasp_send_status(iasp_session_t * const s, iasp_status_t status)
+{
+    streambuf_t *rsb;
+
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    rsb = iasp_proto_get_payload_sb();
+
+    msg.mgmt_status.status = status;
+
+    return iasp_encode_mgmt_status(rsb, &msg.mgmt_status) &&
+            iasp_proto_send(&s->pctx, rsb);
+}
+
+
+static bool iasp_handler_mgmt_token(iasp_session_t * const s, streambuf_t * const sb)
+{
+    if(!iasp_decode_mgmt_token(sb, &msg.mgmt_token_t)) {
+        debug_log("Cannot decode token message.\n");
+        return false;
+    }
+
+    s->token = msg.token;
+
+    return true;
+}
+
+
+static bool iasp_handler_mgmt_status(iasp_session_t * const s, streambuf_t * const sb)
+{
+    if(!iasp_decode_mgmt_status(sb, &msg.mgmt_status)) {
+        debug_log("Cannot decode status message.\n");
+        return false;
+    }
     return true;
 }

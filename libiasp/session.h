@@ -53,6 +53,9 @@ typedef struct _iasp_session_t {
     /* redirected session pointer */
     struct _iasp_session_t *redirect;
 
+    /* token */
+    iasp_token_t token;
+
     /* auxiliary data, mode specific */
     void *aux;
 } iasp_session_t;
