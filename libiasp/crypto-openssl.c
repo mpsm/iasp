@@ -1019,6 +1019,13 @@ bool crypto_gen_key(iasp_spn_code_t spn, iasp_key_t *const key)
 }
 
 
+bool crypto_gen_salt(iasp_salt_t * const salt)
+{
+    assert(salt != NULL);
+    return RAND_bytes(salt->saltdata, sizeof(salt->saltdata)) == 1;
+}
+
+
 const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids)
 {
     unsigned int i;

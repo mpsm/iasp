@@ -27,6 +27,7 @@ bool iasp_encode_hint(streambuf_t * sb, const iasp_hint_t * const hint);
 bool iasp_encode_dhkey(streambuf_t *sb, const iasp_pkey_t *pkey);
 bool iasp_encode_address(streambuf_t *sb, const iasp_address_t * const address);
 bool iasp_encode_spi(streambuf_t *sb, const iasp_spi_t spi);
+bool iasp_encode_skey(streambuf_t *sb, const iasp_skey_t * const skey);
 
 /* message encoding */
 bool iasp_encode_hmsg_init_hello(streambuf_t *sb, const iasp_hmsg_init_hello_t * const msg);

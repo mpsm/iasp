@@ -1190,6 +1190,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     iasp_tpdata_t *tpdi, *tpdr;
     iasp_spn_code_t spn;
     tp_child_session_t *child;
+    streambuf_t *keyinstall;
 
     /* assert TP role */
     assert(role == IASP_ROLE_TP);
@@ -1233,7 +1234,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     memcpy(&child->sides[SESSION_SIDE_INITIATOR].spi, &msg.mgmt_req.spi, sizeof(iasp_spi_t));
     memset(&child->sides[SESSION_SIDE_RESPONDER].spi, 0, sizeof(iasp_spi_t));
     {
-        const iasp_address_t *addr = &msg.mgmt_req.has_my_address ?
+        const iasp_address_t *addr = msg.mgmt_req.has_my_address ?
                 &msg.mgmt_req.my_address : &s->pctx.peer;
 
         memcpy(&child->sides[SESSION_SIDE_INITIATOR].addr, addr, sizeof(iasp_address_t));
@@ -1241,6 +1242,41 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     memcpy(&child->sides[SESSION_SIDE_RESPONDER].addr, &msg.mgmt_req.peer_address, sizeof(iasp_address_t));
     memcpy(&child->sides[SESSION_SIDE_INITIATOR].id, crypto_id_by_spn(spn, &tpdi->ids), sizeof(iasp_identity_t));
     memcpy(&child->sides[SESSION_SIDE_RESPONDER].id, crypto_id_by_spn(spn, &tpdr->ids), sizeof(iasp_identity_t));
+    crypto_gen_salt(&child->salt);
 
-    return true;
+    /* prepare install session message */
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    keyinstall = iasp_proto_get_payload_sb();
+
+    /* fill key install info */
+    {
+        iasp_mgmt_install_session_t *m = &msg.mgmt_install;
+        size_t keysize = child->sides[SESSION_SIDE_INITIATOR].key.keysize;
+
+        /* set initiator ID and SPI */
+        memcpy(&m->peer_id, &child->sides[SESSION_SIDE_INITIATOR].id, sizeof(iasp_identity_t));
+        memcpy(&m->peer_spi, &child->sides[SESSION_SIDE_INITIATOR].spi, sizeof(iasp_spi_t));
+
+        /* set skey data */
+        m->skey.spn = spn;
+        m->skey.keylen = keysize;
+        memcpy(&m->skey.salt, &child->salt, sizeof(iasp_salt_t));
+        memcpy(m->skey.ikey, child->sides[SESSION_SIDE_INITIATOR].key.keydata, keysize);
+        memcpy(m->skey.rkey, child->sides[SESSION_SIDE_RESPONDER].key.keydata, keysize);
+
+        /* set peer address */
+        memcpy(&m->peer_address, &child->sides[SESSION_SIDE_INITIATOR].addr, sizeof(iasp_address_t));
+
+        /* set your address if needed */
+        if(!iasp_network_address_equal(&child->sides[SESSION_SIDE_RESPONDER].addr, &session_responder->pctx.peer)) {
+            m->has_your_address = true;
+            memcpy(&m->your_address, &child->sides[SESSION_SIDE_RESPONDER].addr, sizeof(iasp_address_t));
+        }
+    }
+
+    /* send key install message */
+    session_responder->pctx.msg_type = IASP_MSG_MGMT;
+    return iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
+            iasp_proto_send(&session_responder->pctx, keyinstall);
 }

@@ -90,6 +90,7 @@ typedef struct {
     iasp_identity_t         peer_id;
     iasp_spi_t              peer_spi;
     iasp_address_t          peer_address;
+    iasp_skey_t             skey;
     iasp_address_t          your_address;
     bool                    has_your_address;
 } iasp_mgmt_install_session_t;

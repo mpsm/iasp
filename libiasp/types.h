@@ -130,4 +130,13 @@ typedef struct {
 } iasp_address_t;
 
 
+typedef struct {
+    iasp_spn_code_t spn;
+    size_t keylen;
+    iasp_salt_t salt;
+    uint8_t ikey[IASP_MAX_KEY_SIZE];
+    uint8_t rkey[IASP_MAX_KEY_SIZE];
+} iasp_skey_t;
+
+
 #endif

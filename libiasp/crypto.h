@@ -37,6 +37,7 @@ size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed);
 bool crypto_add_key(binbuf_t * const pkey);
 bool crypto_gen_nonce(iasp_nonce_t *nonce);
 bool crypto_gen_key(iasp_spn_code_t spn, iasp_key_t *const key);
+bool crypto_gen_salt(iasp_salt_t * const salt);
 iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids);
 iasp_spn_code_t crypto_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids);
 const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids);

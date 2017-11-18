@@ -298,8 +298,9 @@ bool iasp_encode_mgmt_req_session(streambuf_t *sb, const iasp_mgmt_req_session_t
 
 bool iasp_encode_mgmt_install_session(streambuf_t *sb, const iasp_mgmt_install_session_t * const msg)
 {
-    if(!iasp_encode_varint(sb, IASP_MGMT_INSTALL) || iasp_encode_id(sb, &msg->peer_id) ||
-           !iasp_encode_spi(sb, msg->peer_spi) || !iasp_encode_address(sb, &msg->peer_address)) {
+    if(!iasp_encode_varint(sb, IASP_MGMT_INSTALL) || !iasp_encode_id(sb, &msg->peer_id) ||
+           !iasp_encode_spi(sb, msg->peer_spi) || !iasp_encode_skey(sb, &msg->skey) ||
+           !iasp_encode_address(sb, &msg->peer_address)) {
         return false;
     }
 
@@ -310,3 +311,11 @@ bool iasp_encode_mgmt_install_session(streambuf_t *sb, const iasp_mgmt_install_s
     return true;
 }
 
+
+bool iasp_encode_skey(streambuf_t *sb, const iasp_skey_t * const skey)
+{
+    return iasp_encode_field_code(sb, IASP_FIELD_SKEY) &&
+            iasp_encode_spn(sb, skey->spn, true) &&
+            streambuf_write(sb, skey->ikey, skey->keylen) &&
+            streambuf_write(sb, skey->rkey, skey->keylen);
+}
