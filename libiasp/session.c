@@ -1189,7 +1189,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     iasp_session_t *session_responder;
     iasp_tpdata_t *tpdi, *tpdr;
     iasp_spn_code_t spn;
-    //iasp_key_t key;
+    tp_child_session_t *child;
 
     /* assert TP role */
     assert(role == IASP_ROLE_TP);
@@ -1223,10 +1223,24 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     debug_print_spn(spn);
     debug_newline();
 
-#if 0
-    /* generate key material */
-    crypto_gen_key(msg.mgmt_req. &key);
-#endif
+    /* allocate child session data */
+    iasp_tpdata_new_child(tpdr);
+    child = tpdi->child = tpdr->child;
+
+    /* generate session data */
+    crypto_gen_key(spn, &child->sides[SESSION_SIDE_INITIATOR].key);
+    crypto_gen_key(spn, &child->sides[SESSION_SIDE_RESPONDER].key);
+    memcpy(&child->sides[SESSION_SIDE_INITIATOR].spi, &msg.mgmt_req.spi, sizeof(iasp_spi_t));
+    memset(&child->sides[SESSION_SIDE_RESPONDER].spi, 0, sizeof(iasp_spi_t));
+    {
+        const iasp_address_t *addr = &msg.mgmt_req.has_my_address ?
+                &msg.mgmt_req.my_address : &s->pctx.peer;
+
+        memcpy(&child->sides[SESSION_SIDE_INITIATOR].addr, addr, sizeof(iasp_address_t));
+    }
+    memcpy(&child->sides[SESSION_SIDE_RESPONDER].addr, &msg.mgmt_req.peer_address, sizeof(iasp_address_t));
+    memcpy(&child->sides[SESSION_SIDE_INITIATOR].id, crypto_id_by_spn(spn, &tpdi->ids), sizeof(iasp_identity_t));
+    memcpy(&child->sides[SESSION_SIDE_RESPONDER].id, crypto_id_by_spn(spn, &tpdr->ids), sizeof(iasp_identity_t));
 
     return true;
 }

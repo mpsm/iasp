@@ -22,6 +22,10 @@ void iasp_tpdata_destroy(iasp_tpdata_t ** const this)
 {
     assert(this != NULL);
 
+    if((*this)->child) {
+        free((*this)->child);
+    }
+
     if(*this != NULL) {
         free(*this);
         *this = NULL;
@@ -35,4 +39,13 @@ void iasp_tpdata_set_ids(iasp_tpdata_t * const this, const iasp_ids_t * const id
 
     /* deep copy */
     memcpy(&this->ids, ids, sizeof(iasp_ids_t));
+}
+
+
+void iasp_tpdata_new_child(iasp_tpdata_t * const this)
+{
+    assert(this != NULL);
+
+    this->child = malloc(sizeof(tp_child_session_t));
+    memset(this->child, 0, sizeof(tp_child_session_t));
 }

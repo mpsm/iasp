@@ -20,15 +20,6 @@ typedef struct {
 
 
 typedef enum {
-    SESSION_SIDE_INITIATOR,
-    SESSION_SIDE_RESPONDER,
-
-    /* counter */
-    SESSION_SIDE_COUNT,
-} iasp_session_side_t;
-
-
-typedef enum {
     SESSION_CMD_OK = 0,
     SESSION_CMD_ERROR = 1,
     SESSION_CMD_TIMEOUT = 2,

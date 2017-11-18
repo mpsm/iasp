@@ -1008,3 +1008,28 @@ bool crypto_get_pkey(iasp_spn_code_t spn_code, iasp_pkey_t * const pkey)
     return true;
 
 }
+
+
+bool crypto_gen_key(iasp_spn_code_t spn, iasp_key_t *const key)
+{
+    key->keysize = spn_map[spn].keysize;
+    key->spn = spn;
+
+    return RAND_bytes(key->keydata, key->keysize) == 1;
+}
+
+
+const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids)
+{
+    unsigned int i;
+
+    assert(ids != NULL);
+
+    for(i = 0; i < ids->id_count; ++i) {
+        if(ids->id[i].spn == spn) {
+            return &ids->id[i];
+        }
+    }
+
+    return NULL;
+}

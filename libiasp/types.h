@@ -27,6 +27,15 @@ typedef enum {
 } iasp_sigtype_t;
 
 
+typedef enum {
+    SESSION_SIDE_INITIATOR,
+    SESSION_SIDE_RESPONDER,
+
+    /* counter */
+    SESSION_SIDE_COUNT,
+} iasp_session_side_t;
+
+
 typedef union {
     struct {
         unsigned char send_pkey:1;
