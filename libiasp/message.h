@@ -17,6 +17,7 @@ typedef enum {
 typedef enum {
     IASP_MGMT_REQ = 1,
     IASP_MGMT_INSTALL = 2,
+    IASP_MGMT_SPI = 3,
 } iasp_mgmt_msg_code_t;
 
 
@@ -96,6 +97,10 @@ typedef struct {
 } iasp_mgmt_install_session_t;
 
 
+typedef struct {
+    iasp_spi_t              spi;
+} iasp_mgmt_spi_t;
+
 typedef union {
     /* handshake protocol */
     iasp_hmsg_init_hello_t  hmsg_init_hello;
@@ -107,6 +112,7 @@ typedef union {
     /* management protocol */
     iasp_mgmt_install_session_t mgmt_install;
     iasp_mgmt_req_session_t     mgmt_req;
+    iasp_mgmt_spi_t             mgmt_spi;
 } iasp_msg_storage_t;
 
 

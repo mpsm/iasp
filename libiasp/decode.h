@@ -38,5 +38,6 @@ bool iasp_decode_hmsg_resp_auth(streambuf_t *sb, iasp_hmsg_resp_auth_t * const m
 bool iasp_decode_hmsg_redirect(streambuf_t *sb, iasp_hmsg_redirect_t * const msg);
 bool iasp_decode_mgmt_req_session(streambuf_t *sb, iasp_mgmt_req_session_t * const msg);
 bool iasp_decode_mgmt_install_session(streambuf_t *sb, iasp_mgmt_install_session_t * const msg);
+bool iasp_decode_mgmt_spi(streambuf_t *sb, iasp_mgmt_spi_t * const msg);
 
 #endif

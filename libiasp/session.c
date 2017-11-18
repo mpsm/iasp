@@ -54,6 +54,7 @@ static bool iasp_handler_redirect(iasp_session_t * const, streambuf_t * const);
 /* message handlers - management */
 static bool iasp_handler_mgmt_req(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_install(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_mgmt_spi(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -96,6 +97,7 @@ static const session_handler_lookup_t tp_session_handlers[] =
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_AUTH), iasp_handler_init_auth},
         {MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_RESP_AUTH), iasp_handler_resp_auth},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_REQ), iasp_handler_mgmt_req},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_SPI), iasp_handler_mgmt_spi},
         {0, NULL},
 };
 
@@ -187,6 +189,7 @@ const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp
 
     /* prepare headers */
     s->pctx.msg_type = IASP_MSG_HANDSHAKE;
+    s->side = SESSION_SIDE_INITIATOR;
 
     /* get payload space */
     iasp_proto_reset_payload();
@@ -1215,6 +1218,34 @@ static iasp_session_t *iasp_session_by_address_pair(const iasp_address_t * const
 }
 
 
+static iasp_session_t *iasp_session_by_child(tp_child_session_t * child)
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        iasp_session_t *s = &sessions[i];
+        iasp_tpdata_t *tpd = s->aux;
+
+        /* tpd not set */
+        if(tpd == NULL) {
+            continue;
+        }
+
+        /* skip inactive sessions */
+        if(!s->active) {
+            continue;
+        }
+
+        /* compare child */
+        if(tpd->child == child) {
+            return s;
+        }
+    }
+
+    /* nothing found */
+    return NULL;
+}
+
 static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const sb)
 {
     iasp_session_t *session_responder;
@@ -1258,6 +1289,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     /* allocate child session data */
     iasp_tpdata_new_child(tpdr);
     child = tpdi->child = tpdr->child;
+    child->spn = spn;
 
     /* generate session data */
     crypto_gen_key(spn, &child->sides[SESSION_SIDE_INITIATOR].key);
@@ -1317,6 +1349,8 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
 {
     iasp_session_t * peer_session;
     iasp_address_t * my_address;
+    iasp_session_side_data_t *i, *r;
+    streambuf_t * reply;
 
     if(!iasp_decode_mgmt_install_session(sb, &msg.mgmt_install)) {
         debug_log("Failed to decode session install message.\n");
@@ -1343,9 +1377,12 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         debug_log("Found session: %p.\n", peer_session);
     }
 
+    /* extract side data */
+    i = &peer_session->sides[SESSION_SIDE_INITIATOR];
+    r = &peer_session->sides[SESSION_SIDE_RESPONDER];
+
     /* fill session info */
     {
-        iasp_session_side_data_t *i, *r;
         size_t keysize;
 
         /* save SPN */
@@ -1354,15 +1391,15 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         /* get proper key size */
         keysize = crypto_get_key_size(peer_session->spn);
 
-        /* extract side data */
-        i = &peer_session->sides[SESSION_SIDE_INITIATOR];
-        r = &peer_session->sides[SESSION_SIDE_RESPONDER];
-
         /* get my id */
-        crypto_get_id(peer_session->spn, &r->id);
+        crypto_get_id(peer_session->spn, &peer_session->sides[peer_session->side].id);
 
         /* set peer's ID */
-        memcpy(&i->id, &msg.mgmt_install.peer_id, sizeof(iasp_identity_t));
+        {
+            iasp_identity_t *peerid;
+            peerid = peer_session->side == SESSION_SIDE_INITIATOR ? &r->id : &i->id;
+            memcpy(peerid, &msg.mgmt_install.peer_id, sizeof(iasp_identity_t));
+        }
 
         /* set SALT */
         memcpy(&peer_session->salt, &msg.mgmt_install.skey.salt, sizeof(iasp_salt_t));
@@ -1374,8 +1411,14 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         memcpy(r->key.keydata, msg.mgmt_install.skey.rkey, keysize);
 
         /* set SPIs */
-        memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
-        memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+        if(peer_session->side == SESSION_SIDE_RESPONDER) {
+            memcpy(i->spi.spidata, &msg.mgmt_install.peer_spi, sizeof(iasp_spi_t));
+            memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
+        }
+        else {
+            memcpy(r->spi.spidata, &msg.mgmt_install.peer_spi, sizeof(iasp_spi_t));
+            memcpy(i->spi.spidata, i->nonce.data + 2, sizeof(iasp_spi_t));
+        }
     }
 
     /* event notify */
@@ -1383,6 +1426,106 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         event_cb(peer_session, SESSION_EVENT_ESTABLISHED);
     }
 
-    return true;
+    /* prepare reply */
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    reply = iasp_proto_get_payload_sb();
+
+    switch(peer_session->side) {
+        case SESSION_SIDE_RESPONDER:
+            /* reply with SPI */
+            memcpy(&msg.mgmt_spi.spi, &r->spi, sizeof(iasp_spi_t));
+            s->pctx.msg_type = IASP_MSG_MGMT;
+            return iasp_encode_mgmt_spi(reply, &msg.mgmt_spi) &&
+                    iasp_proto_send(&s->pctx, reply);
+
+        case SESSION_SIDE_INITIATOR:
+            /* TODO: reply with OK */
+            return true;
+
+        default:
+            abort();
+    }
+
+    return false;
 }
 
+
+static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const sb)
+{
+    iasp_tpdata_t *tpd;
+    streambuf_t *keyinstall;
+    tp_child_session_t *child;
+    iasp_session_t *session_initiator;
+
+    assert(role == IASP_ROLE_TP);
+
+    if(!iasp_decode_mgmt_spi(sb, &msg.mgmt_spi)) {
+        debug_log("Cannot decode SPI message.\n");
+        return false;
+    }
+
+    /* TODO: sanity checks */
+
+    /* set missing responder SPI */
+    tpd = s->aux;
+    child = tpd->child;
+    memcpy(&tpd->child->sides[SESSION_SIDE_RESPONDER].spi, &msg.mgmt_spi.spi, sizeof(iasp_spi_t));
+
+    /* TODO: reply with OK */
+
+    /* reset child infomation */
+    tpd->child = NULL;
+
+    /* prepare install for initiator */
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    keyinstall = iasp_proto_get_payload_sb();
+
+    /* find initiator session */
+    session_initiator = iasp_session_by_child(child);
+    if(session_initiator == NULL) {
+        debug_log("Cannot find initiator for child session.\n");
+        return false;
+    }
+    tpd = session_initiator->aux;
+
+    /* fill key install info */
+    {
+        iasp_mgmt_install_session_t *m = &msg.mgmt_install;
+        size_t keysize = child->sides[SESSION_SIDE_INITIATOR].key.keysize;
+
+        /* set initiator ID and SPI */
+        memcpy(&m->peer_id, &child->sides[SESSION_SIDE_RESPONDER].id, sizeof(iasp_identity_t));
+        memcpy(&m->peer_spi, &child->sides[SESSION_SIDE_RESPONDER].spi, sizeof(iasp_spi_t));
+
+        /* set skey data */
+        m->skey.spn = child->spn;;
+        m->skey.keylen = keysize;
+        memcpy(&m->skey.salt, &child->salt, sizeof(iasp_salt_t));
+        memcpy(m->skey.ikey, child->sides[SESSION_SIDE_INITIATOR].key.keydata, keysize);
+        memcpy(m->skey.rkey, child->sides[SESSION_SIDE_RESPONDER].key.keydata, keysize);
+
+        /* set peer address */
+        memcpy(&m->peer_address, &child->sides[SESSION_SIDE_RESPONDER].addr, sizeof(iasp_address_t));
+
+        /* set your address if needed */
+        if(!iasp_network_address_equal(&child->sides[SESSION_SIDE_INITIATOR].addr, &session_initiator->pctx.peer)) {
+            m->has_your_address = true;
+            memcpy(&m->your_address, &child->sides[SESSION_SIDE_INITIATOR].addr, sizeof(iasp_address_t));
+        }
+    }
+
+    /* encode and send */
+    session_initiator->pctx.msg_type = IASP_MSG_MGMT;
+    if(!(iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
+            iasp_proto_send(&session_initiator->pctx, keyinstall))) {
+        debug_log("Cannot send key install to the initiator.\n");
+        return false;
+    }
+
+    /* TODO: destroy child session information */
+    tpd->child = NULL;
+
+    return true;
+}

@@ -320,3 +320,10 @@ bool iasp_encode_skey(streambuf_t *sb, const iasp_skey_t * const skey)
             streambuf_write(sb, skey->ikey, skey->keylen) &&
             streambuf_write(sb, skey->rkey, skey->keylen);
 }
+
+
+bool iasp_encode_mgmt_spi(streambuf_t *sb, const iasp_mgmt_spi_t * const msg)
+{
+    return iasp_encode_varint(sb, IASP_MGMT_SPI) &&
+            iasp_encode_spi(sb, msg->spi);
+}

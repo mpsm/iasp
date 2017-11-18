@@ -592,3 +592,9 @@ bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey)
     /* read actual keys */
     return streambuf_read(sb, skey->ikey, skey->keylen) && streambuf_read(sb, skey->rkey, skey->keylen);
 }
+
+
+bool iasp_decode_mgmt_spi(streambuf_t *sb, iasp_mgmt_spi_t * const msg)
+{
+    return iasp_decode_spi(sb, &msg->spi);
+}

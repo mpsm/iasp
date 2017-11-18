@@ -15,6 +15,7 @@ typedef struct {
     }
     sides[SESSION_SIDE_COUNT];
     iasp_salt_t         salt;
+    iasp_spn_code_t     spn;
 } tp_child_session_t;
 
 
