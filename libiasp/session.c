@@ -1617,6 +1617,8 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
         binbuf_t bbaad, bbiv;
         uint32_t seq;
 
+        debug_log("Encrypting message.\n");
+
         /* check if there is a space for the tag */
         if(payload->max_size - payload->size < IASP_CRYPTO_TAG_LENGTH) {
             debug_log("Not enough space to encrypt message.\n");
@@ -1639,8 +1641,11 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
             }
 
             memcpy(aad, iasp_network_address_ip(ia), sizeof(iasp_ip_t));
-            memcpy(aad, iasp_network_address_ip(ra), sizeof(iasp_ip_t));
+            memcpy(aad + sizeof(iasp_ip_t), iasp_network_address_ip(ra), sizeof(iasp_ip_t));
             iasp_proto_put_outer_hdr(aad + 2*sizeof(iasp_ip_t), true, s->pctx.pv, s->spn);
+            debug_log("AAD: ");
+            debug_print_binary(aad, sizeof(aad));
+            debug_newline();
         }
 
         /* prepare IV data */
@@ -1666,9 +1671,15 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
             /* copy sequence */
             seq = htonl(s->pctx.output_seq);
             memcpy(piv, (uint8_t *)&seq, sizeof(seq));
+            debug_log("IV: ");
+            debug_print_binary(iv, sizeof(iv));
+            debug_newline();
 
             /* increment sequence */
             s->pctx.output_seq += payload->size / 16 + (int)(payload->size % 16);
+
+            /* set outgoing spi */
+            s->pctx.output_spi = s->sides[s->side].spi;
         }
 
         /* encrypt */
