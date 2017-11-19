@@ -45,7 +45,7 @@ typedef union {
 } iasp_outer_header_t;
 
 typedef struct {
-    uint16_t spi;
+    iasp_spi_t spi;
     uint32_t seq;
 } __attribute__((packed)) iasp_secure_header_t;
 
@@ -68,6 +68,10 @@ typedef struct {
     iasp_spn_code_t spn;
     iasp_msg_type_t msg_type;
     uint8_t pn;
+    uint32_t input_seq;
+    uint32_t output_seq;
+    iasp_spi_t input_spi;
+    iasp_spi_t output_spi;
 } iasp_proto_ctx_t;
 
 
@@ -82,6 +86,7 @@ streambuf_t * iasp_proto_get_payload_sb(void);
 void iasp_proto_reset_payload(void);
 void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
+bool iasp_proto_put_security_hdr(streambuf_t *sb, iasp_spi_t spi, uint32_t seq);
 bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload);
 bool iasp_proto_receive(iasp_address_t * const address, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
         unsigned int timeout);

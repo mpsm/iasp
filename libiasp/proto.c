@@ -5,6 +5,7 @@
 #include "types.h"
 #include "debug.h"
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -38,6 +39,13 @@ void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_s
 }
 
 
+bool iasp_proto_put_security_hdr(streambuf_t *sb, iasp_spi_t spi, uint32_t seq)
+{
+    uint32_t nseq = htonl(seq);
+    return streambuf_write(sb, spi.spidata, sizeof(iasp_spi_t)) && streambuf_write(sb, (uint8_t *)&nseq, sizeof(nseq));
+}
+
+
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn)
 {
     iasp_inner_hdr_t ih;
@@ -65,17 +73,18 @@ bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
     /* prepare packet sb */
     iasp_reset_packet(this->encrypted);
 
-    /* increment packet number if it is not an answer */
-    if(!this->answer) {
-        pn++;
-    }
-
     /* prepare headers */
     iasp_proto_put_outer_hdr(&oh, this->encrypted, this->pv, this->spn);
     iasp_proto_put_inner_hdr(&ih, this->msg_type, this->answer, pn);
 
     /* put headers */
-    if(!streambuf_write(&packet_sb, &oh, sizeof(oh)) || !streambuf_write(&packet_sb, &ih, sizeof(ih))) {
+    if(!streambuf_write(&packet_sb, &oh, sizeof(oh))) {
+        return false;
+    }
+    if(this->encrypted && !iasp_proto_put_security_hdr(&packet_sb, this->output_spi, this->output_seq)) {
+        return false;
+    }
+    if(!streambuf_write(&packet_sb, &ih, sizeof(ih))) {
         return false;
     }
 

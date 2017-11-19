@@ -12,6 +12,7 @@
 #include "trust.h"
 #include "role.h"
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -44,6 +45,9 @@ static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_address_pair(const iasp_address_t * const myaddress, const iasp_address_t * const peer);
 static bool iasp_send_status(iasp_session_t * const s, iasp_status_t status);
+static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payload, iasp_msg_type_t mt, bool answer, bool encrypted);
+static bool iasp_session_send_mgmt(iasp_session_t * const s, streambuf_t * payload, bool answer);
+static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * payload, bool answer);
 
 /* message handlers - handshake */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
@@ -214,7 +218,7 @@ const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp
     }
 
     /* proto send message */
-    if(!iasp_proto_send(&s->pctx, NULL)) {
+    if(!iasp_session_send_hmsg(s, NULL, false)) {
         /* TODO: destroy session or retry */
         return NULL;
     }
@@ -457,7 +461,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* ================ ROLE DEPEND =================== */
 
     /* send reply */
-    return iasp_proto_send(&s->pctx, reply);
+    return iasp_session_send_hmsg(s, reply, true);
 }
 
 
@@ -623,7 +627,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     }
 
     /* send response */
-    return iasp_proto_send(&s->pctx, reply);
+    return iasp_session_send_hmsg(s, reply, false);
 }
 
 
@@ -889,7 +893,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     }
 
     /* send reply */
-    return iasp_proto_send(&s->pctx, reply);
+    return iasp_session_send_hmsg(s, reply, true);
 }
 
 
@@ -1150,9 +1154,7 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
         memcpy(&m->spi, &i->spi, sizeof(iasp_spi_t));
 
         /* send key request */
-        s->redirect->pctx.answer = false;
-        s->redirect->pctx.msg_type = IASP_MSG_MGMT;
-        return iasp_encode_mgmt_req_session(keyreq, m) && iasp_proto_send(&s->redirect->pctx, keyreq);
+        return iasp_encode_mgmt_req_session(keyreq, m) && iasp_session_send_mgmt(s->redirect, keyreq, false);
     }
 
     return true;
@@ -1352,9 +1354,8 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     }
 
     /* send key install message */
-    session_responder->pctx.msg_type = IASP_MSG_MGMT;
     return iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
-            iasp_proto_send(&session_responder->pctx, keyinstall);
+            iasp_session_send_mgmt(session_responder, keyinstall, false);
 }
 
 
@@ -1450,7 +1451,7 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
             memcpy(&msg.mgmt_spi.spi, &r->spi, sizeof(iasp_spi_t));
             s->pctx.msg_type = IASP_MSG_MGMT;
             return iasp_encode_mgmt_spi(reply, &msg.mgmt_spi) &&
-                    iasp_proto_send(&s->pctx, reply);
+                    iasp_session_send_mgmt(s, reply, true);
 
         case SESSION_SIDE_INITIATOR:
             return iasp_send_status(s, IASP_STATUS_OK);
@@ -1535,7 +1536,7 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     /* encode and send */
     session_initiator->pctx.msg_type = IASP_MSG_MGMT;
     if(!(iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
-            iasp_proto_send(&session_initiator->pctx, keyinstall))) {
+            iasp_session_send_hmsg(session_initiator, keyinstall, false))) {
         debug_log("Cannot send key install to the initiator.\n");
         return false;
     }
@@ -1558,7 +1559,7 @@ static bool iasp_send_status(iasp_session_t * const s, iasp_status_t status)
     msg.mgmt_status.status = status;
 
     return iasp_encode_mgmt_status(rsb, &msg.mgmt_status) &&
-            iasp_proto_send(&s->pctx, rsb);
+            iasp_session_send_mgmt(s, rsb, true);
 }
 
 
@@ -1582,4 +1583,116 @@ static bool iasp_handler_mgmt_status(iasp_session_t * const s, streambuf_t * con
     }
 
     return true;
+}
+
+
+static bool iasp_session_send_mgmt(iasp_session_t * const s, streambuf_t * payload, bool answer)
+{
+    return iasp_session_send_msg(s, payload, IASP_MSG_MGMT, answer, true);
+}
+
+
+static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * payload, bool answer)
+{
+    return iasp_session_send_msg(s, payload, IASP_MSG_HANDSHAKE, answer, false);
+}
+
+
+static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payload, iasp_msg_type_t mt, bool answer, bool encrypted)
+{
+    /* set answer and pn */
+    s->pctx.answer = answer;
+    if(!answer) {
+        iasp_proto_bump_pn(&s->pctx);
+    }
+
+    /* set message type */
+    s->pctx.msg_type = mt;
+
+    /* set encrypt flag and encrypt if needed */
+    s->pctx.encrypted = encrypted;
+    if(encrypted) {
+        static uint8_t aad[2*sizeof(iasp_ip_t) + sizeof(uint8_t)];
+        static uint8_t iv[sizeof(iasp_nonce_t) + 2*sizeof(iasp_spi_t) + sizeof(uint32_t)];
+        binbuf_t bbaad, bbiv;
+        uint32_t seq;
+
+        /* check if there is a space for the tag */
+        if(payload->max_size - payload->size < IASP_CRYPTO_TAG_LENGTH) {
+            debug_log("Not enough space to encrypt message.\n");
+            return false;
+        }
+
+        /* prepare aad data */
+        {
+            iasp_address_t *ia, *ra;
+
+            bbaad.size = sizeof(aad);
+            bbaad.buf = aad;
+            if(s->side == SESSION_SIDE_INITIATOR) {
+                ia = &s->pctx.addr;
+                ra = &s->pctx.peer;
+            }
+            else {
+                ra = &s->pctx.addr;
+                ia = &s->pctx.peer;
+            }
+
+            memcpy(aad, iasp_network_address_ip(ia), sizeof(iasp_ip_t));
+            memcpy(aad, iasp_network_address_ip(ra), sizeof(iasp_ip_t));
+            iasp_proto_put_outer_hdr(aad + 2*sizeof(iasp_ip_t), true, s->pctx.pv, s->spn);
+        }
+
+        /* prepare IV data */
+        {
+            uint8_t *piv = iv;
+
+            /* zero IV buffer */
+            memset(iv, 0, sizeof(iv));
+
+            /* prepare bb */
+            bbiv.size = sizeof(iv);
+            bbiv.buf = iv;
+
+            /* copy SALT */
+            memcpy(piv, s->salt.saltdata, sizeof(iasp_salt_t));
+            piv += sizeof(iasp_salt_t);
+
+            /* copy SPIs */
+            memcpy(piv, &s->sides[SESSION_SIDE_INITIATOR].spi, sizeof(iasp_spi_t));
+            memcpy(piv + sizeof(iasp_spi_t), &s->sides[SESSION_SIDE_RESPONDER].spi, sizeof(iasp_spi_t));
+            piv += 2*sizeof(iasp_spi_t);
+
+            /* copy sequence */
+            seq = htonl(s->pctx.output_seq);
+            memcpy(piv, (uint8_t *)&seq, sizeof(seq));
+
+            /* increment sequence */
+            s->pctx.output_seq += payload->size / 16 + (int)(payload->size % 16);
+        }
+
+        /* encrypt */
+        {
+            binbuf_t bbp;
+            iasp_key_t *key;
+
+            /* setup plaintext bb */
+            bbp.buf = payload->data;
+            bbp.size = payload->size;
+
+            /* get key */
+            key = &s->sides[s->side].key;
+
+            /* do actual encryption */
+            if(!crypto_encrypt(s->spn, &bbp, &bbaad, &bbiv, key->keydata, &bbp)) {
+                debug_log("Failed to encrypt payload.\n");
+                return false;
+            }
+
+            /* fix payload sb to cover tag */
+            payload->size += IASP_CRYPTO_TAG_LENGTH;
+        }
+    }
+
+    return iasp_proto_send(&s->pctx, payload);
 }
