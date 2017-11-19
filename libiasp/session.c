@@ -48,6 +48,10 @@ static bool iasp_send_status(iasp_session_t * const s, iasp_status_t status);
 static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payload, iasp_msg_type_t mt, bool answer, bool encrypted);
 static bool iasp_session_send_mgmt(iasp_session_t * const s, streambuf_t * payload, bool answer);
 static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * payload, bool answer);
+static void iasp_session_get_iv(iasp_session_t *s, binbuf_t *bbiv, bool output);
+static void iasp_session_get_aad(iasp_session_t * const s, binbuf_t *bbaad);
+static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * const payload);
+
 
 /* message handlers - handshake */
 static bool iasp_handler_init_hello(iasp_session_t * const, streambuf_t * const);
@@ -278,31 +282,6 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
     const session_handler_lookup_t *lookup;
     iasp_session_t *s = NULL;
 
-    /* get message code */
-    if(!iasp_decode_varint(payload, &msg_code)) {
-        return SESSION_CMD_INVALID_MSG;
-    }
-
-    /* check range */
-    if(msg_code >= UINT8_MAX) {
-        return SESSION_CMD_INVALID_MSG;
-    }
-
-    /* find handler */
-    lookup_code = MSG_CODE(pctx->msg_type, msg_code);
-    lookup = handlers[role];
-    while(lookup->msg != 0) {
-        if(lookup->msg == lookup_code) {
-            break;
-        }
-        lookup++;
-    }
-
-    /* found handler */
-    if(lookup->handler == NULL) {
-        return SESSION_CMD_INVALID_MSG;
-    }
-
     /* find session */
     {
         unsigned int i;
@@ -333,14 +312,50 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
 
     /* create new session */
     if(s == NULL) {
+#if 0
         if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
             return SESSION_CMD_INVALID_MSG;
         }
-
+#endif
         s = iasp_session_new(&pctx->addr, &pctx->peer);
         if(s == NULL) {
             return SESSION_CMD_NOMEM;
         }
+    }
+    else {
+        /* copy crucial data */
+        s->pctx.input_seq = pctx->input_seq;
+        s->pctx.input_spi = pctx->input_spi;
+
+        /* decrypt if received msg is encrypted */
+        if(pctx->encrypted) {
+            iasp_session_decrypt_msg(s, payload);
+        }
+    }
+
+    /* get message code */
+    if(!iasp_decode_varint(payload, &msg_code)) {
+        return SESSION_CMD_INVALID_MSG;
+    }
+
+    /* check range */
+    if(msg_code >= UINT8_MAX) {
+        return SESSION_CMD_INVALID_MSG;
+    }
+
+    /* find handler */
+    lookup_code = MSG_CODE(pctx->msg_type, msg_code);
+    lookup = handlers[role];
+    while(lookup->msg != 0) {
+        if(lookup->msg == lookup_code) {
+            break;
+        }
+        lookup++;
+    }
+
+    /* found handler */
+    if(lookup->handler == NULL) {
+        return SESSION_CMD_INVALID_MSG;
     }
 
     /* reset decode space */
@@ -1486,11 +1501,6 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     child = tpd->child;
     memcpy(&tpd->child->sides[SESSION_SIDE_RESPONDER].spi, &msg.mgmt_spi.spi, sizeof(iasp_spi_t));
 
-    /* reply with OK */
-    if(!iasp_send_status(s, IASP_STATUS_OK)) {
-        return false;
-    }
-
     /* reset child infomation */
     tpd->child = NULL;
 
@@ -1534,9 +1544,8 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     }
 
     /* encode and send */
-    session_initiator->pctx.msg_type = IASP_MSG_MGMT;
     if(!(iasp_encode_mgmt_install_session(keyinstall, &msg.mgmt_install) &&
-            iasp_session_send_hmsg(session_initiator, keyinstall, false))) {
+            iasp_session_send_mgmt(session_initiator, keyinstall, false))) {
         debug_log("Cannot send key install to the initiator.\n");
         return false;
     }
@@ -1598,6 +1607,62 @@ static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * paylo
 }
 
 
+static void iasp_session_get_aad(iasp_session_t * const s, binbuf_t *bbaad)
+{
+    iasp_address_t *ia, *ra;
+    static uint8_t aad[2*sizeof(iasp_ip_t) + sizeof(uint8_t)];
+
+    bbaad->size = sizeof(aad);
+    bbaad->buf = aad;
+    if(s->side == SESSION_SIDE_INITIATOR) {
+        ia = &s->pctx.addr;
+        ra = &s->pctx.peer;
+    }
+    else {
+        ra = &s->pctx.addr;
+        ia = &s->pctx.peer;
+    }
+
+    memcpy(aad, iasp_network_address_ip(ia), sizeof(iasp_ip_t));
+    memcpy(aad + sizeof(iasp_ip_t), iasp_network_address_ip(ra), sizeof(iasp_ip_t));
+    iasp_proto_put_outer_hdr(aad + 2*sizeof(iasp_ip_t), true, s->pctx.pv, s->spn);
+    debug_log("AAD: ");
+    debug_print_binary(aad, sizeof(aad));
+    debug_newline();
+}
+
+
+static void iasp_session_get_iv(iasp_session_t *s, binbuf_t *bbiv, bool output)
+{
+    uint32_t seq;
+    static uint8_t iv[sizeof(iasp_nonce_t) + 2*sizeof(iasp_spi_t) + sizeof(uint32_t)];
+    uint8_t *piv = iv;
+
+    /* zero IV buffer */
+    memset(iv, 0, sizeof(iv));
+
+    /* prepare bb */
+    bbiv->size = sizeof(iv);
+    bbiv->buf = iv;
+
+    /* copy SALT */
+    memcpy(piv, s->salt.saltdata, sizeof(iasp_salt_t));
+    piv += sizeof(iasp_salt_t);
+
+    /* copy SPIs */
+    memcpy(piv, &s->sides[SESSION_SIDE_INITIATOR].spi, sizeof(iasp_spi_t));
+    memcpy(piv + sizeof(iasp_spi_t), &s->sides[SESSION_SIDE_RESPONDER].spi, sizeof(iasp_spi_t));
+    piv += 2*sizeof(iasp_spi_t);
+
+    /* copy sequence */
+    seq = htonl(output ? s->pctx.output_seq : s->pctx.input_seq);
+    memcpy(piv, (uint8_t *)&seq, sizeof(seq));
+    debug_log("IV: ");
+    debug_print_binary(iv, sizeof(iv));
+    debug_newline();
+}
+
+
 static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payload, iasp_msg_type_t mt, bool answer, bool encrypted)
 {
     bool result = false;
@@ -1614,10 +1679,7 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
     /* set encrypt flag and encrypt if needed */
     s->pctx.encrypted = encrypted;
     if(encrypted) {
-        static uint8_t aad[2*sizeof(iasp_ip_t) + sizeof(uint8_t)];
-        static uint8_t iv[sizeof(iasp_nonce_t) + 2*sizeof(iasp_spi_t) + sizeof(uint32_t)];
         binbuf_t bbaad, bbiv;
-        uint32_t seq;
 
         debug_log("Encrypting message.\n");
 
@@ -1627,59 +1689,14 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
             return false;
         }
 
-        /* prepare aad data */
-        {
-            iasp_address_t *ia, *ra;
-
-            bbaad.size = sizeof(aad);
-            bbaad.buf = aad;
-            if(s->side == SESSION_SIDE_INITIATOR) {
-                ia = &s->pctx.addr;
-                ra = &s->pctx.peer;
-            }
-            else {
-                ra = &s->pctx.addr;
-                ia = &s->pctx.peer;
-            }
-
-            memcpy(aad, iasp_network_address_ip(ia), sizeof(iasp_ip_t));
-            memcpy(aad + sizeof(iasp_ip_t), iasp_network_address_ip(ra), sizeof(iasp_ip_t));
-            iasp_proto_put_outer_hdr(aad + 2*sizeof(iasp_ip_t), true, s->pctx.pv, s->spn);
-            debug_log("AAD: ");
-            debug_print_binary(aad, sizeof(aad));
-            debug_newline();
-        }
+        /* prepare AAD data */
+        iasp_session_get_aad(s, &bbaad);
 
         /* prepare IV data */
-        {
-            uint8_t *piv = iv;
+        iasp_session_get_iv(s, &bbiv, true);
 
-            /* zero IV buffer */
-            memset(iv, 0, sizeof(iv));
-
-            /* prepare bb */
-            bbiv.size = sizeof(iv);
-            bbiv.buf = iv;
-
-            /* copy SALT */
-            memcpy(piv, s->salt.saltdata, sizeof(iasp_salt_t));
-            piv += sizeof(iasp_salt_t);
-
-            /* copy SPIs */
-            memcpy(piv, &s->sides[SESSION_SIDE_INITIATOR].spi, sizeof(iasp_spi_t));
-            memcpy(piv + sizeof(iasp_spi_t), &s->sides[SESSION_SIDE_RESPONDER].spi, sizeof(iasp_spi_t));
-            piv += 2*sizeof(iasp_spi_t);
-
-            /* copy sequence */
-            seq = htonl(s->pctx.output_seq);
-            memcpy(piv, (uint8_t *)&seq, sizeof(seq));
-            debug_log("IV: ");
-            debug_print_binary(iv, sizeof(iv));
-            debug_newline();
-
-            /* set outgoing spi */
-            s->pctx.output_spi = s->sides[s->side].spi;
-        }
+        /* set outgoing spi */
+        s->pctx.output_spi = s->sides[s->side].spi;
 
         /* encrypt */
         {
@@ -1721,4 +1738,35 @@ error:
     }
 
     return result;
+}
+
+
+static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * const payload)
+{
+    binbuf_t bbaad, bbiv;
+
+    debug_log("Decrypting message.\n");
+
+    /* prepare AAD data */
+    iasp_session_get_aad(s, &bbaad);
+
+    /* prepare IV data */
+    iasp_session_get_iv(s, &bbiv, false);
+
+    /* decrypt message */
+    {
+        binbuf_t p;
+        iasp_session_side_t peer_side = s->side == SESSION_SIDE_INITIATOR ? SESSION_SIDE_RESPONDER : SESSION_SIDE_INITIATOR;
+
+        p.buf = payload->data;
+        p.size = payload->size;
+
+        /* decrypt and remove tag */
+        if(!crypto_decrypt(s->spn, &p, &bbaad, &bbiv, s->sides[peer_side].key.keydata, &p)) {
+            return false;
+        }
+        payload->size -= IASP_CRYPTO_TAG_LENGTH;
+    }
+
+    return true;
 }
