@@ -618,7 +618,7 @@ bool iasp_decode_status(streambuf_t *sb, iasp_status_t * const status)
 
     /* save value */
     *status = (iasp_status_t)byte;
-    return false;
+    return true;
 }
 
 
