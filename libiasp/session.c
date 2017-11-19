@@ -1600,6 +1600,8 @@ static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * paylo
 
 static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payload, iasp_msg_type_t mt, bool answer, bool encrypted)
 {
+    bool result = false;
+
     /* set answer and pn */
     s->pctx.answer = answer;
     if(!answer) {
@@ -1675,9 +1677,6 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
             debug_print_binary(iv, sizeof(iv));
             debug_newline();
 
-            /* increment sequence */
-            s->pctx.output_seq += payload->size / 16 + (int)(payload->size % 16);
-
             /* set outgoing spi */
             s->pctx.output_spi = s->sides[s->side].spi;
         }
@@ -1705,5 +1704,21 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
         }
     }
 
-    return iasp_proto_send(&s->pctx, payload);
+    if(!iasp_proto_send(&s->pctx, payload)) {
+        goto error;
+    }
+
+    result = true;
+error:
+    /* fix sequence */
+    if(encrypted) {
+        /* increment sequence */
+        payload->size -= IASP_CRYPTO_TAG_LENGTH;
+        s->pctx.output_seq += payload->size / 16;
+        if(payload->size % 16) {
+            s->pctx.output_seq += 1;
+        }
+    }
+
+    return result;
 }
