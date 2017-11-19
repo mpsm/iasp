@@ -209,7 +209,8 @@ bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pc
         if(!streambuf_read(&packet_sb, (uint8_t *)&sh, sizeof(sh))) {
             return false;
         }
-        /* TODO: save seq and spn */
+        pctx->input_seq = ntohl(sh.seq);
+        pctx->input_spi = sh.spi;
     }
 
     /* read inner header */
@@ -229,6 +230,14 @@ bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pc
     debug_log("Message received: %s, answer: %s, PV=%u, SPN=%u, MT=%u, PN=%u, payload size: %u bytes.\n",
             pctx->encrypted ? "encrypted" : "not encrypted",
             pctx->answer ? "yes" : "no", pctx->pv, pctx->spn, pctx->msg_type, pctx->pn, psb->size);
+    if(pctx->encrypted) {
+        debug_log("Packet SPI: ");
+        debug_print_spi(&sh.spi);
+        debug_newline();
+        debug_log("Packet SEQ: ");
+        debug_print_binary((uint8_t *)&sh.seq, sizeof(sh.seq));
+        debug_newline();
+    }
 
     return true;
 }
