@@ -13,7 +13,9 @@ SRCS= \
 	decode.c \
 	tp.c \
 	debug.c \
-	trust.c
+	trust.c \
+	security.c \
+	spn.c
 
 INCS= iasp_field.h
 OBJS= $(patsubst %.c,%.o,$(SRCS))

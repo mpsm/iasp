@@ -5,6 +5,8 @@
 #include "config.h"
 #include "debug.h"
 #include "iasp.h"
+#include "spn.h"
+#include "security.h"
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
@@ -50,7 +52,7 @@ static const crypto_context_t spn_map[] = {
 
 /* private variables */
 iasp_spn_support_t *spn = NULL;
-const crypto_public_keys_t *public_keys = NULL;
+const security_public_keys_t *public_keys = NULL;
 const binbuf_t * oob = NULL;
 
 /* sign and verify context */
@@ -98,6 +100,27 @@ static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn)
     }
 
     return ctx;
+}
+
+
+bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id)
+{
+    EVP_PKEY evp_pkey;
+    EC_KEY *eckey;
+    EVP_PKEY_set_type(&evp_pkey, EVP_PKEY_EC);
+
+    /* initiate EVP_PKEY */
+    if(!crypto_pkey_to_evp(pkey, &sign_pkey)) {
+        return false;
+    }
+
+    /* get eckey */
+    eckey = EVP_PKEY_get1_EC_KEY(&evp_pkey);
+    if(eckey == NULL) {
+        return false;
+    }
+
+    return crypto_eckey2id(pkey->spn, eckey, id);
 }
 
 
@@ -188,7 +211,6 @@ static iasp_spn_code_t crypto_match_spn(EC_KEY *key)
 bool crypto_add_key(binbuf_t * const pkey)
 {
     const EC_GROUP *group;
-    //const EC_POINT *pubkey;
     EC_KEY *key = NULL;
     int group_nid;
     iasp_spn_support_t *cs = spn;
@@ -299,7 +321,7 @@ static const iasp_spn_support_t *crypto_get_supported_spn(iasp_spn_code_t spn_co
 }
 
 
-iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids)
+iasp_spn_code_t security_choose_spn(const iasp_ids_t * const ids)
 {
     unsigned int i;
 
@@ -327,7 +349,7 @@ iasp_spn_code_t crypto_choose_spn(const iasp_ids_t * const ids)
 }
 
 
-iasp_spn_code_t crypto_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids)
+iasp_spn_code_t security_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids)
 {
     unsigned int i;
 
@@ -437,12 +459,6 @@ error:
     }
 
     return result;
-}
-
-
-void crypto_set_pubkeys(const crypto_public_keys_t * const pubkeys)
-{
-    public_keys = pubkeys;
 }
 
 
@@ -575,23 +591,6 @@ bool crypto_sign_update(const unsigned char *b, size_t blen)
 }
 
 
-size_t crypto_get_sign_length(iasp_spn_code_t spn_code, iasp_sigtype_t sigtype)
-{
-    switch(sigtype) {
-        case IASP_SIG_EC:
-            return spn_map[spn_code].eclen * 2;
-
-        case IASP_SIG_HMAC:
-            return spn_map[spn_code].dlen;
-
-        default:
-            abort();
-    }
-
-    return 0;
-}
-
-
 bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey)
 {
     EC_POINT *ecpoint;
@@ -643,7 +642,7 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
             EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_EC);
 
             /* find public key */
-            pkeybin = crypto_get_pkey_by_id(id);
+            pkeybin = security_get_pkey_by_id(id);
             if(pkeybin == NULL) {
                 return false;
             }
@@ -683,24 +682,6 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
     sign_spn = id->spn;
 
     return true;
-}
-
-
-const iasp_pkey_t *crypto_get_pkey_by_id(const iasp_identity_t * const id)
-{
-    unsigned int i;
-
-    if(public_keys == NULL) {
-        return NULL;
-    }
-
-    for(i = 0; i < public_keys->count; ++i) {
-        if(memcmp(id, &public_keys->keys[i].id, sizeof(iasp_identity_t)) == 0) {
-            return &public_keys->keys[i].pubkey;
-        }
-    }
-
-    return NULL;
 }
 
 
@@ -849,19 +830,6 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
 }
 
 
-size_t crypto_get_pkey_length(iasp_spn_code_t spn, bool compressed)
-{
-    size_t dlen = spn_map[spn].eclen;
-
-    if(compressed) {
-        return dlen + 1;
-    }
-    else {
-        return dlen * 2 + 1;
-    }
-}
-
-
 static void *kdf_spn1(const void *in, size_t inlen, void *out, size_t *outlen, const binbuf_t * const salt)
 {
     const EVP_MD *md =  EVP_get_digestbynid(spn_map[IASP_SPN_128].nid_dgst);
@@ -937,12 +905,6 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
 }
 
 
-size_t crypto_get_key_size(iasp_spn_code_t spn)
-{
-    return spn_map[spn].keysize;
-}
-
-
 void crypto_set_oob_key(const binbuf_t * const bb)
 {
     oob = bb;
@@ -998,7 +960,7 @@ bool crypto_get_pkey(iasp_spn_code_t spn_code, iasp_pkey_t * const pkey)
 
     /* get public key */
     buf = pkey->pkeydata;
-    bufsize = crypto_get_pkey_length(spn_code, true);
+    bufsize = spn_get_pkey_length(spn_code, true);
     if(!crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &buf, &bufsize)) {
         return false;
     }

@@ -245,7 +245,7 @@ bool iasp_decode_sig(streambuf_t *sb, iasp_sig_t * const sig)
     }
 
     /* get signature length */
-    sig->siglen = crypto_get_sign_length(sig->spn, sig->sigtype);
+    sig->siglen = spn_get_sign_length(sig->spn, sig->sigtype);
 
     /* zero buffer */
     memset(sig->sigdata, 0, sizeof(sig->sigdata));
@@ -280,7 +280,7 @@ static bool iasp_decode_pkey_common(streambuf_t *sb, iasp_pkey_t * const pkey, i
     }
 
     /* get pkey length */
-    pkey->pkeylen = crypto_get_pkey_length(pkey->spn, true);
+    pkey->pkeylen = spn_get_pkey_length(pkey->spn, true);
 
     /* zero buffer */
     memset(pkey->pkeydata, 0, sizeof(pkey->pkeydata));
@@ -582,7 +582,7 @@ bool iasp_decode_skey(streambuf_t *sb, iasp_skey_t * const skey)
     }
 
     /* set key length */
-    skey->keylen = crypto_get_key_size(skey->spn);
+    skey->keylen = spn_get_key_size(skey->spn);
 
     /* get SALT */
     if(!streambuf_read(sb, skey->salt.saltdata, sizeof(skey->salt.saltdata))) {

@@ -391,7 +391,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     s->side = SESSION_SIDE_RESPONDER;
 
     /* choose spn */
-    s->spn = crypto_choose_spn(&msg.hmsg_init_hello.ids);
+    s->spn = security_choose_spn(&msg.hmsg_init_hello.ids);
     if(s->spn == IASP_SPN_NONE) {
         debug_log("Unable choose SPN.\n");
         return false;
@@ -765,7 +765,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* choose key for ECDHE */
     if(!msg.hmsg_init_auth.has_dhkey) {
         /* find pkey by peer key id */
-        pkey = crypto_get_pkey_by_id(&i->id);
+        pkey = security_get_pkey_by_id(&i->id);
         if(pkey == NULL) {
             return false;
         }
@@ -1064,7 +1064,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     static uint8_t buffer[IASP_MAX_KEY_SIZE*2 + sizeof(iasp_salt_t)];
     static uint8_t saltbuffer[sizeof(iasp_spi_t) * 2];
     binbuf_t saltbb;
-    size_t keysize = crypto_get_key_size(pkey->spn);
+    size_t keysize = spn_get_key_size(pkey->spn);
     size_t gensize = 2*keysize + sizeof(iasp_salt_t);
     iasp_session_side_data_t *i, *r;
 
@@ -1304,7 +1304,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     tpdr = (iasp_tpdata_t *)session_responder->aux;
 
     /* choose SPN for session */
-    spn = crypto_choose_spn2(&tpdi->ids, &tpdr->ids);
+    spn = security_choose_spn2(&tpdi->ids, &tpdr->ids);
     if(spn == IASP_SPN_NONE || spn == IASP_SPN_MAX) {
         if(!iasp_send_status(s, IASP_STATUS_ERROR)) {
             debug_log("Cannot send error message to peer.\n");
@@ -1418,7 +1418,7 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         peer_session->spn = msg.mgmt_install.peer_id.spn;
 
         /* get proper key size */
-        keysize = crypto_get_key_size(peer_session->spn);
+        keysize = spn_get_key_size(peer_session->spn);
 
         /* get my id */
         crypto_get_id(peer_session->spn, &peer_session->sides[peer_session->side].id);

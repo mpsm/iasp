@@ -69,7 +69,7 @@ static const struct {
 static uint8_t iasp_buffer[IASP_BUFFER_SIZE];
 
 /* crypto context */
-static crypto_public_keys_t public_keys;
+static security_public_keys_t public_keys;
 static binbuf_t oob;
 
 /* local event data */
@@ -228,10 +228,10 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "Error reading key file: %s\n", keyfile);
                     goto exit;
                 }
-            }
 
-            /* set public keys data */
-            crypto_set_pubkeys(&public_keys);
+                /* set public keys data */
+                security_add_pkey(&public_keys.keys[i].pubkey, false);
+            }
 
             /* read OOB key */
             oob.buf = NULL;
