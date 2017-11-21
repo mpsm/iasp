@@ -122,6 +122,9 @@ bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id)
         return false;
     }
 
+    /* set id SPN */
+    id->spn = pkey->spn;
+
     return crypto_eckey2id(pkey->spn, eckey, id);
 }
 

@@ -46,7 +46,9 @@ bool security_add_pkey(iasp_pkey_t *pkey, bool privileged)
     spd = &security_pkeys[security_pkeys_count];
     spd->privileged = privileged;
     spd->pkey = pkey;
-    crypto_get_pkey_id(spd->pkey, &spd->id);
+    if(!crypto_get_pkey_id(spd->pkey, &spd->id)) {
+        return false;
+    }
 
     /* update key count */
     security_pkeys_count++;
