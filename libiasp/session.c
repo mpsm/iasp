@@ -699,8 +699,8 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
             return false;
         }
 
-        /* TODO: do something with PKEY */
         debug_log("PKEY received.\n");
+        security_add_pkey_dup(&msg.hmsg_init_auth.pkey, false);
     }
 
     /* check OOB key signature if asked for */
@@ -955,8 +955,8 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
             return false;
         }
 
-        /* TODO: do something with PKEY */
         debug_log("PKEY received.\n");
+        security_add_pkey_dup(&msg.hmsg_resp_auth.pkey, false);
     }
 
     /* check OOB key signature if asked for */

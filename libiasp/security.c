@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -29,6 +30,19 @@ void security_init()
 {
     memset(security_pkeys, 0, sizeof(security_pkeys));
     security_pkeys_count = 0;
+}
+
+
+bool security_add_pkey_dup(iasp_pkey_t *pkey, bool privileged)
+{
+    iasp_pkey_t *dup;
+
+    assert(pkey != NULL);
+
+    dup = malloc(sizeof(iasp_pkey_t));
+    memcpy(dup, pkey, sizeof(iasp_pkey_t));
+
+    return security_add_pkey(dup, privileged);
 }
 
 
