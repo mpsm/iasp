@@ -107,10 +107,12 @@ bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id)
 {
     EVP_PKEY evp_pkey;
     EC_KEY *eckey;
+
+    memset(&evp_pkey, 0, sizeof(evp_pkey));
     EVP_PKEY_set_type(&evp_pkey, EVP_PKEY_EC);
 
     /* initiate EVP_PKEY */
-    if(!crypto_pkey_to_evp(pkey, &sign_pkey)) {
+    if(!crypto_pkey_to_evp(pkey, &evp_pkey)) {
         return false;
     }
 
@@ -614,7 +616,7 @@ bool crypto_pkey_to_evp(const iasp_pkey_t * const pkey, EVP_PKEY *evppkey)
     if(EC_KEY_set_public_key(eckey, ecpoint) == 0) {
         return false;
     }
-    if(EVP_PKEY_set1_EC_KEY(&sign_pkey, eckey) == 0) {
+    if(EVP_PKEY_set1_EC_KEY(evppkey, eckey) == 0) {
         return false;
     }
 
