@@ -62,8 +62,8 @@ const iasp_pkey_t *security_get_pkey_by_id(const iasp_identity_t * const id)
     unsigned int i;
 
     for(i = 0; i < security_pkeys_count; ++i) {
-        if(memcmp(id, &security_pkeys[security_pkeys_count].id, sizeof(iasp_identity_t)) == 0) {
-            return security_pkeys[security_pkeys_count].pkey;
+        if(memcmp(id, &security_pkeys[i].id, sizeof(iasp_identity_t)) == 0) {
+            return security_pkeys[i].pkey;
         }
     }
 
