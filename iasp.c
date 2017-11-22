@@ -691,3 +691,15 @@ static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e,
     debug_log("Session processing timeout (%p).\n", s);
     return false;
 }
+
+
+bool security_use_hint(const iasp_hint_t * const hint)
+{
+    if(iasp_get_role() == IASP_ROLE_CD) {
+        debug_log("Skipping heavy operation for CD device.\n");
+        return true;
+    }
+
+    debug_log("Loading certificate from hint: %s.\n", (const char *)hint->hintdata);
+    return pki_load_cert((const char*)hint->hintdata);
+}

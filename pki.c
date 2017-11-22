@@ -1,6 +1,7 @@
 #include "libiasp/debug.h"
 #include "libiasp/types.h"
 #include "libiasp/crypto-openssl.h"
+#include "libiasp/security.h"
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -150,6 +151,10 @@ bool pki_load_cert(const char *filepath)
         debug_log("PKI: Cannot validate certificate.\n");
         return false;
     }
+    debug_log("Certificate is valid!\n");
+
+    /* add pkey to database */
+    security_add_pkey(&new->pkey, false);
 
     /* link structure */
     new->next = NULL;
