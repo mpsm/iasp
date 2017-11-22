@@ -125,8 +125,6 @@ void debug_print_session(const iasp_session_t * const s)
 
     for(i = 0; i < SESSION_SIDE_COUNT; ++i) {
         printf("  %s data: \n", debug_side2str(i));
-        printf("    addr:  ");
-
         printf("    id:    ");
         debug_print_id(&s->sides[i].id); debug_newline();
         printf("    key:   ");
