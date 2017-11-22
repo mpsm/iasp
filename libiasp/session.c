@@ -27,8 +27,9 @@
 /* session handler */
 typedef bool (*iasp_session_handler_t)(iasp_session_t * const, streambuf_t * const);
 
-/* event handler */
+/* callbacks: event handler, user data */
 static iasp_session_cb_t event_cb;
+static iasp_session_userdata_cb_t userdata_cb;
 
 /* session data */
 static iasp_session_t sessions[IASP_CONFIG_MAX_SESSIONS];
@@ -128,6 +129,13 @@ void iasp_session_set_cb(iasp_session_cb_t cb)
 {
     assert(cb != NULL);
     event_cb = cb;
+}
+
+
+void iasp_session_set_userdata_cb(iasp_session_userdata_cb_t cb)
+{
+    assert(cb != NULL);
+    userdata_cb = cb;
 }
 
 
@@ -329,7 +337,21 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
 
         /* decrypt if received msg is encrypted */
         if(pctx->encrypted) {
-            iasp_session_decrypt_msg(s, payload);
+            if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
+                return SESSION_CMD_INVALID_MSG;
+            }
+            if(!iasp_session_decrypt_msg(s, payload)) {
+                debug_log("Invalid decrypt.\n");
+                return SESSION_CMD_INVALID_MSG;
+            }
+        }
+    }
+
+    /* check message type for user data */
+    if(pctx->msg_type == IASP_MSG_USER) {
+        if(userdata_cb) {
+            userdata_cb(s, iasp_proto_get_payload_sb());
+            return SESSION_CMD_OK;
         }
     }
 
@@ -922,13 +944,20 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         return false;
     }
 
+    /* send reply */
+    if(!iasp_session_send_hmsg(s, reply, true)) {
+        return false;
+    }
+
+    /* mark as established */
+    s->established = true;
+
     /* event callback */
     if(event_cb != NULL) {
         event_cb(s, SESSION_EVENT_ESTABLISHED);
     }
 
-    /* send reply */
-    return iasp_session_send_hmsg(s, reply, true);
+    return true;
 }
 
 
@@ -1090,6 +1119,9 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     if(!iasp_session_generate_secret(s, &msg.hmsg_resp_auth.dhkey, ecdhe_ctx)) {
         return false;
     }
+
+    /* mark as established */
+    s->established = true;
 
     /* event callback */
     if(event_cb != NULL) {
@@ -1491,11 +1523,6 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
         }
     }
 
-    /* event notify */
-    if(event_cb != NULL) {
-        event_cb(peer_session, SESSION_EVENT_ESTABLISHED);
-    }
-
     /* prepare reply */
     iasp_reset_message();
     iasp_proto_reset_payload();
@@ -1506,18 +1533,31 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
             /* reply with SPI */
             memcpy(&msg.mgmt_spi.spi, &r->spi, sizeof(iasp_spi_t));
             s->pctx.msg_type = IASP_MSG_MGMT;
-            return iasp_encode_mgmt_spi(reply, &msg.mgmt_spi) &&
-                    iasp_session_send_mgmt(s, reply, true);
+            if(!(iasp_encode_mgmt_spi(reply, &msg.mgmt_spi) &&
+                    iasp_session_send_mgmt(s, reply, true))){
+                return false;
+            }
+            break;
 
         case SESSION_SIDE_INITIATOR:
-            return iasp_send_status(s, IASP_STATUS_OK);
+            if(!iasp_send_status(s, IASP_STATUS_OK)) {
+                return false;
+            }
+            break;
 
         default:
             abort();
     }
 
-    /* never reached */
-    return false;
+    /* mark as established */
+    peer_session->established = true;
+
+    /* event notify */
+    if(event_cb != NULL) {
+        event_cb(peer_session, SESSION_EVENT_ESTABLISHED);
+    }
+
+    return true;
 }
 
 
@@ -1788,6 +1828,11 @@ static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * con
 
     debug_log("Decrypting message.\n");
 
+    if(!s->established) {
+        debug_log("Session is not established.\n");
+        return false;
+    }
+
     /* prepare AAD data */
     iasp_session_get_aad(s, &bbaad);
 
@@ -1810,4 +1855,22 @@ static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * con
     }
 
     return true;
+}
+
+
+bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const size_t datasize)
+{
+    streambuf_t *sb;
+
+    if(!s->established) {
+        debug_log("Error, session is not established.\n");
+        return false;
+    }
+
+    /* prepare for message */
+    iasp_proto_reset_payload();
+    sb = iasp_proto_get_payload_sb();
+    streambuf_write(sb, data, datasize);
+
+    return iasp_session_send_msg(s, sb, IASP_MSG_USER, false, true);
 }

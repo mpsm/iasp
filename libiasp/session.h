@@ -46,6 +46,7 @@ typedef struct _iasp_session_t {
     iasp_salt_t salt;
     iasp_spn_code_t spn;
     iasp_session_side_t side;
+    bool established;
 
     /* negotiation sides data */
     iasp_session_side_data_t sides[SESSION_SIDE_COUNT];
@@ -63,6 +64,7 @@ typedef struct _iasp_session_t {
 
 /* event handler type */
 typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_session_event_t e);
+typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, streambuf_t * const sb);
 
 
 /* global methods */
@@ -70,6 +72,8 @@ void iasp_sessions_reset(void);
 void iasp_session_set_role(iasp_role_t r);
 iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer);
 void iasp_session_set_cb(iasp_session_cb_t cb);
+void iasp_session_set_userdata_cb(iasp_session_userdata_cb_t cb);
+
 
 /* per-session methods */
 void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr);
@@ -79,5 +83,7 @@ iasp_session_result_t iasp_session_handle_any(void);
 
 /* commands */
 const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
+bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const size_t datasize);
+
 
 #endif

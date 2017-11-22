@@ -86,6 +86,7 @@ static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e, i
 
 /* default event handler */
 static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
+static void userdata_handler(iasp_session_t * const s, streambuf_t * data);
 
 
 int main(int argc, char *argv[])
@@ -290,8 +291,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* install event handler */
+    /* install event handlers */
     iasp_session_set_cb(event_handler);
+    iasp_session_set_userdata_cb(userdata_handler);
 
     /* print supported profiles */
     {
@@ -635,6 +637,7 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
             debug_newline();
             debug_print_session(s);
             debug_newline();
+            iasp_session_send_userdata(s, (const uint8_t *)"test", 4);
             break;
 
         case SESSION_EVENT_TERMINATED:
@@ -702,4 +705,12 @@ bool security_use_hint(const iasp_hint_t * const hint)
 
     debug_log("Loading certificate from hint: %s.\n", (const char *)hint->hintdata);
     return pki_load_cert((const char*)hint->hintdata);
+}
+
+
+static void userdata_handler(iasp_session_t * const s, streambuf_t * data)
+{
+    debug_log("User data received for session: %p.\n", s);
+    debug_print_binary(data->data, data->size);
+    debug_newline();
 }
