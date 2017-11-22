@@ -20,4 +20,9 @@ const iasp_pkey_t *security_get_pkey_by_id(const iasp_identity_t * const id);
 iasp_spn_code_t security_choose_spn(const iasp_ids_t * const ids);
 iasp_spn_code_t security_choose_spn2(const iasp_ids_t * const iids, const iasp_ids_t * const rids);
 
+/* weak authorization methods */
+bool security_use_hint(const iasp_hint_t * const hint);
+bool security_authorize_peer(const iasp_pkey_t *pkey);
+
+
 #endif

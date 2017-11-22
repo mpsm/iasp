@@ -83,3 +83,15 @@ const iasp_pkey_t *security_get_pkey_by_id(const iasp_identity_t * const id)
 
     return NULL;
 }
+
+
+__attribute__((weak)) bool security_use_hint(const iasp_hint_t * const hint)
+{
+    return true;
+}
+
+
+__attribute__((weak)) bool security_authorize_peer(const iasp_pkey_t *pkey)
+{
+    return true;
+}

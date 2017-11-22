@@ -688,8 +688,11 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
             return false;
         }
 
-        /* TODO: do something with hint */
         debug_log("Hint: %.*s.\n", msg.hmsg_init_auth.hint.hintlen, (const char *)msg.hmsg_init_auth.hint.hintdata);
+        if(!security_use_hint(&msg.hmsg_init_auth.hint)) {
+            debug_log("Error during hint processing!\n");
+            return false;
+        }
     }
 
     /* check pkey if asked for */
@@ -703,6 +706,23 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         security_add_pkey_dup(&msg.hmsg_init_auth.pkey, false);
     }
 
+    /* it should be possible to check peer's public key by now */
+    {
+        const iasp_pkey_t *peer_pkey = security_get_pkey_by_id(&i->id);
+
+        /* get peer's public key */
+        if(peer_pkey == NULL) {
+            debug_log("Cannot get peer's public key!\n");
+            return false;
+        }
+
+        /* check if peer is authorized */
+        if(!security_authorize_peer(peer_pkey)) {
+            debug_log("Peer's not authorized!\n");
+            return false;
+        }
+    }
+
     /* check OOB key signature if asked for */
     if(r->flags.bits.oob_auth) {
         if(!msg.hmsg_init_auth.has_oobsig) {
@@ -712,7 +732,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
         /* sanity check */
         if(msg.hmsg_init_auth.oobsig.sigtype != IASP_SIG_HMAC) {
-            debug_log("Invalid OOB signature.");
+            debug_log("Invalid OOB signature.\n");
             return false;
         }
 
@@ -944,8 +964,12 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
             return false;
         }
 
-        /* TODO: do something with hint */
+        /* use hint to get peer's certificate */
         debug_log("Hint: %.*s.\n", msg.hmsg_resp_auth.hint.hintlen, (const char *)msg.hmsg_resp_auth.hint.hintdata);
+        if(!security_use_hint(&msg.hmsg_resp_auth.hint)) {
+            debug_log("Error during hint processing!\n");
+            return false;
+        }
     }
 
     /* check pkey if asked for */
@@ -957,6 +981,23 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
 
         debug_log("PKEY received.\n");
         security_add_pkey_dup(&msg.hmsg_resp_auth.pkey, false);
+    }
+
+    /* it should be possible to check peer's public key by now */
+    {
+        const iasp_pkey_t *peer_pkey = security_get_pkey_by_id(&r->id);
+
+        /* get peer's public key */
+        if(peer_pkey == NULL) {
+            debug_log("Cannot get peer's public key!\n");
+            return false;
+        }
+
+        /* check if peer is authorized */
+        if(!security_authorize_peer(peer_pkey)) {
+            debug_log("Peer's not authorized!\n");
+            return false;
+        }
     }
 
     /* check OOB key signature if asked for */
