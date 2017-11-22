@@ -24,7 +24,9 @@ all: unittest iasp
 test: clean unittest
 	./unittest
 
-iasp: iasp.o libiasp/libiasp.a
+iasp: libiasp/libiasp.a
+
+iasp: iasp.o pki.o 
 	$(CC) $(LDFLAGS) $< -liasp -lcrypto -lconfig -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
