@@ -405,27 +405,46 @@ bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id)
 }
 
 
-bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * const id, const binbuf_t *bb)
+bool crypto_openssl_extract_key_bb(iasp_pkey_t * const pkey, iasp_identity_t * const id, const binbuf_t *bb)
 {
-    EVP_PKEY *evppkey = NULL;
-    EC_KEY *eckey = NULL;
+    EVP_PKEY *evppkey;
     const unsigned char *key_data;
-    unsigned char *okey_data;
-    size_t keysize;
-    iasp_spn_code_t matched_spn;
     bool result = false;
 
-    assert(pkey != NULL);
     assert(bb != NULL);
 
     key_data = bb->buf;
-    keysize = sizeof(pkey->pkeydata);
 
     /* read public key */
     evppkey = d2i_PUBKEY(NULL, &key_data, bb->size);
     if(evppkey == NULL) {
-        goto error;
+        return false;
     }
+
+    if(!crypto_openssl_extract_key(pkey, id, evppkey)) {
+        goto end;
+    }
+
+    result = true;
+end:
+    if(evppkey) {
+        EVP_PKEY_free(evppkey);
+    }
+
+    return result;
+}
+
+
+bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * const id, EVP_PKEY *evppkey)
+{
+    EC_KEY *eckey = NULL;
+    unsigned char *okey_data = NULL;
+    iasp_spn_code_t matched_spn;
+    bool result = false;
+    size_t keysize = 0;
+
+    assert(pkey != NULL);
+    assert(evppkey != NULL);
 
     /* get EC key */
     eckey = EVP_PKEY_get1_EC_KEY(evppkey);
@@ -441,6 +460,7 @@ bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * cons
 
     /* get EC key data */
     okey_data = pkey->pkeydata;
+    keysize = sizeof(pkey->pkeydata);
     if(!crypto_get_public_key(eckey, POINT_CONVERSION_COMPRESSED, &okey_data, &keysize)) {
         goto error;
     }
@@ -455,10 +475,6 @@ bool crypto_openssl_extract_key(iasp_pkey_t * const pkey, iasp_identity_t * cons
     result = true;
 
 error:
-    if(evppkey) {
-        EVP_PKEY_free(evppkey);
-    }
-
     if(eckey) {
         EC_KEY_free(eckey);
     }

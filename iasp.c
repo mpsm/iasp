@@ -380,7 +380,7 @@ static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_ident
         return false;
     }
 
-    if(!crypto_openssl_extract_key(pkey, id, &pkey_bb)) {
+    if(!crypto_openssl_extract_key_bb(pkey, id, &pkey_bb)) {
         return false;
     }
 

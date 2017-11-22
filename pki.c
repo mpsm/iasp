@@ -1,6 +1,9 @@
 #include "libiasp/debug.h"
+#include "libiasp/types.h"
+#include "libiasp/crypto-openssl.h"
 
 #include <openssl/bio.h>
+#include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
@@ -9,10 +12,23 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
 static X509_STORE *cert_ctx = NULL;
+typedef struct _pki_cert {
+    X509 *x509;
+    iasp_identity_t id;
+    iasp_pkey_t pkey;
+    struct _pki_cert *next;
+} pki_cert_t;
+pki_cert_t *pki_cert_head = NULL;
+pki_cert_t *pki_cert_last = NULL;
+
+
+/* private methods */
+static BIO *pki_read_file(const char *filename);
 
 
 bool pki_init()
@@ -29,14 +45,8 @@ bool pki_crl(const char *path)
 
     assert(path != NULL);
 
-    in = BIO_new(BIO_s_file());
-    if (in == NULL) {
-        debug_log("PKI: Failed to open file: %s.\n", path);
+    if((in = pki_read_file(path)) == NULL) {
         return false;
-    }
-
-    if (BIO_read_filename(in, path) <= 0) {
-        debug_log("PKI: File %s open error %s.\n", path, strerror(errno));
     }
 
     crl = d2i_X509_CRL_bio(in, NULL);
@@ -84,3 +94,76 @@ bool pki_lookup(const char *cafile, const char *capath)
 
     return true;
 }
+
+
+static BIO *pki_read_file(const char *filename)
+{
+    BIO *in = NULL;
+
+    in = BIO_new(BIO_s_file());
+    if (in == NULL) {
+        debug_log("PKI: Failed to open file: %s.\n", filename);
+        return NULL;
+    }
+
+    if (BIO_read_filename(in, filename) <= 0) {
+        debug_log("PKI: File %s open error %s.\n", filename, strerror(errno));
+        return NULL;
+    }
+
+    return in;
+}
+
+
+bool pki_load_cert(const char *filepath)
+{
+    BIO *in;
+    pki_cert_t *new;
+    EVP_PKEY *evppkey;
+    X509_STORE_CTX *sctx;
+
+    /* read file */
+    new = malloc(sizeof(pki_cert_t));
+    if((in = pki_read_file(filepath)) == NULL) {
+        return false;
+    }
+
+    /* read x509 file */
+    new->x509 = d2i_X509_bio(in, NULL);
+    if(new->x509) {
+        debug_log("PKI: Failed to load certificate.\n");
+        return false;
+    }
+
+    /* extract public key and id */
+    evppkey = X509_get_pubkey(new->x509);
+    if(evppkey == NULL) {
+        return false;
+    }
+    if(!crypto_openssl_extract_key(&new->pkey, &new->id, evppkey)) {
+        debug_log("PKI: Cannot extract key from certificate.\n");
+        return false;
+    }
+    sctx = X509_STORE_CTX_new();
+    X509_STORE_CTX_init(sctx, cert_ctx, new->x509, NULL);
+    if(!X509_verify_cert(sctx)) {
+        debug_log("PKI: Cannot validate certificate.\n");
+        return false;
+    }
+
+    /* link structure */
+    new->next = NULL;
+    if(pki_cert_head == NULL) {
+        pki_cert_head = new;
+    }
+
+    if(pki_cert_last != NULL) {
+        pki_cert_last->next = new;
+    }
+    pki_cert_last = new;
+
+    BIO_free(in);
+
+    return true;
+}
+
