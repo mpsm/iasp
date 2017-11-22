@@ -91,6 +91,7 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
 int main(int argc, char *argv[])
 {
     int ret = ERROR_RUNTIME;
+    const config_setting_t *keys;
     config_t cfg;
     iasp_address_t myaddr = {NULL};
     iasp_address_t peer_addr = {NULL};
@@ -181,7 +182,6 @@ int main(int argc, char *argv[])
     /* init crypto and read keys*/
     {
         unsigned int i;
-        const config_setting_t *keys;
 
         /* read keys locations from config */
         if((keys = config_lookup(&cfg, "crypto.keys")) == NULL) {
@@ -234,27 +234,27 @@ int main(int argc, char *argv[])
                 /* set public keys data */
                 security_add_pkey(&public_keys.keys[i].pubkey, false);
             }
-
-            /* read OOB key */
-            oob.buf = NULL;
-            oob.size = 0;
-            if((keys = config_lookup(&cfg, "crypto.oob_key")) != NULL) {
-                const char *filename = config_setting_get_string(keys);
-
-                /* read key from file */
-                debug_log("Reading OOB key: %s\n", filename);
-                if(!read_file(filename, &oob)) {
-                    fprintf(stderr, "Error reading OOB key file\n");
-                    goto exit;
-                }
-
-                /* set key */
-                crypto_set_oob_key(&oob);
-            }
         }
         else {
             fprintf(stderr, "Crypto: warning - no public keys specified.\n");
         }
+    }
+
+    /* read OOB key */
+    oob.buf = NULL;
+    oob.size = 0;
+    if((keys = config_lookup(&cfg, "crypto.oob_key")) != NULL) {
+        const char *filename = config_setting_get_string(keys);
+
+        /* read key from file */
+        debug_log("Reading OOB key: %s\n", filename);
+        if(!read_file(filename, &oob)) {
+            fprintf(stderr, "Error reading OOB key file\n");
+            goto exit;
+        }
+
+        /* set key */
+        crypto_set_oob_key(&oob);
     }
 
     /* add hint if present */
