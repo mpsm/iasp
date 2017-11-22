@@ -26,6 +26,8 @@
 #include "libiasp/debug.h"
 #include "libiasp/trust.h"
 
+#include "pki.h"
+
 
 #define IASP_BUFFER_SIZE (1024)
 #define IASP_MAX_RETRIES (3)
@@ -554,6 +556,50 @@ exit:
 static int main_tp(const modecontext_t *ctx)
 {
     printf("Executing TP mode.\n");
+
+    pki_init();
+
+    {
+        const char *cafile;
+
+        if(config_lookup_string(ctx->cfg, "crypto.cafile", &cafile) == CONFIG_FALSE) {
+            fprintf(stderr, "TP: specify cacert.pem in configuration.\n");
+            return ERROR_CONFIG;
+        }
+        debug_log("Adding CA file: %s.\n", cafile);
+        if(!pki_lookup(cafile, NULL)) {
+            return ERROR_CONFIG;
+        }
+    }
+
+    {
+        const char *crlfile;
+
+        if(config_lookup_string(ctx->cfg, "crypto.crlfile", &crlfile) == CONFIG_TRUE) {
+            debug_log("Adding CRL flle: %s.\n", crlfile);
+            if(!pki_crl(crlfile)) {
+                debug_log("Cannot add CRL file.\n");
+            }
+        }
+    }
+
+    {
+        const config_setting_t *certs;
+        unsigned int i;
+
+        if((certs = config_lookup(ctx->cfg, "crypto.certs")) != NULL) {
+            size_t count = config_setting_length(certs);
+            for(i = 0; i < count; ++i) {
+                const char *cert;
+
+                cert = config_setting_get_string_elem(certs, i);
+                debug_log("Adding certificate to store: %s.\n", cert);
+                if(!pki_load_cert(cert)) {
+                    debug_log("Failed to add certificate.\n");
+                }
+            }
+        }
+    }
 
     for(;;) {
         switch(iasp_session_handle_any()) {

@@ -27,7 +27,7 @@ test: clean unittest
 iasp: libiasp/libiasp.a
 
 iasp: iasp.o pki.o 
-	$(CC) $(LDFLAGS) $< -liasp -lcrypto -lconfig -ldl -o $@ 
+	$(CC) $(LDFLAGS) $^ -liasp -lcrypto -lconfig -ldl -o $@ 
 
 unittest: test.o libiasp/libiasp.a 
 	$(CC) $(LDFLAGS) $< -liasp -lcmocka -o $@
