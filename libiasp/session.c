@@ -67,6 +67,7 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const, streambuf_t * cons
 static bool iasp_handler_mgmt_spi(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_token(iasp_session_t * const, streambuf_t * const);
 static bool iasp_handler_mgmt_status(iasp_session_t * const, streambuf_t * const);
+static bool iasp_handler_mgmt_terminate(iasp_session_t * const, streambuf_t * const);
 
 
 /* lookup table */
@@ -88,6 +89,7 @@ static const session_handler_lookup_t cd_session_handlers[] =
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TERMINATE), iasp_handler_mgmt_terminate},
         {0, NULL},
 };
 
@@ -102,6 +104,7 @@ static const session_handler_lookup_t ffd_session_handlers[] =
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_INSTALL), iasp_handler_mgmt_install},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TERMINATE), iasp_handler_mgmt_terminate},
         {0, NULL},
 };
 
@@ -116,6 +119,7 @@ static const session_handler_lookup_t tp_session_handlers[] =
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_SPI), iasp_handler_mgmt_spi},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_STATUS), iasp_handler_mgmt_status},
         {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TOKEN), iasp_handler_mgmt_token},
+        {MSG_CODE(IASP_MSG_MGMT, IASP_MGMT_TERMINATE), iasp_handler_mgmt_terminate},
         {0, NULL},
 };
 
@@ -1873,4 +1877,58 @@ bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const si
     streambuf_write(sb, data, datasize);
 
     return iasp_session_send_msg(s, sb, IASP_MSG_USER, false, true);
+}
+
+
+bool iasp_session_terminate(iasp_session_t * const s)
+{
+    streambuf_t *sb;
+
+    debug_log("Terminating session: %p\n", s);
+
+    /* prepare message buffer */
+    iasp_reset_message();
+    iasp_proto_reset_payload();
+    sb = iasp_proto_get_payload_sb();
+
+    /* init terminate */
+    iasp_encode_mgmt_terminate(sb);
+
+    /* send message */
+    if(!iasp_session_send_mgmt(s, sb, false)) {
+        return false;
+    }
+
+    /* mark as inactive */
+    /* TODO: proper destroy */
+    /* TODO: wait for reply */
+    s->active = false;
+
+    return true;
+}
+
+
+void iasp_session_destroy()
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        if(!sessions[i].active) {
+            continue;
+        }
+        iasp_session_terminate(&sessions[i]);
+    }
+}
+
+
+static bool iasp_handler_mgmt_terminate(iasp_session_t * const s, streambuf_t * const sb)
+{
+    debug_log("Terminating session: %p\n", s);
+
+    if(!s->established) {
+        return false;
+    }
+
+    s->active = false;
+    return true;
 }

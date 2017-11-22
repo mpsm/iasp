@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include "libiasp/iasp.h"
 #include "libiasp/binbuf.h"
@@ -88,6 +89,12 @@ static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e, i
 static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
 static void userdata_handler(iasp_session_t * const s, streambuf_t * data);
 
+/* signal handler */
+void signal_handler(int signum);
+
+/* signal exit flag */
+bool exitflag = false;
+
 
 int main(int argc, char *argv[])
 {
@@ -105,6 +112,15 @@ int main(int argc, char *argv[])
     if(argc < 2 || argc > 4) {
         fprintf(stderr, "Usage: %s config_file\n", argv[0]);
         exit(ERROR_ARGS);
+    }
+
+    /* install SIGINT handler */
+    {
+        struct sigaction newsigaction;
+        newsigaction.sa_flags = 0;
+        sigemptyset(&newsigaction.sa_mask);
+        newsigaction.sa_handler = signal_handler;
+        sigaction(SIGINT, &newsigaction, NULL);
     }
 
     /* set peer port */
@@ -498,6 +514,9 @@ static int main_cd(const modecontext_t *ctx)
         /* process incoming messages */
         for(;;) {
             iasp_session_handle_any();
+            if(exitflag) {
+                break;
+            }
         }
     }
 
@@ -616,6 +635,11 @@ static int main_tp(const modecontext_t *ctx)
                 debug_log("Message processing error.\n");
                 break;
         }
+
+        if(exitflag) {
+            iasp_session_destroy();
+            break;
+        }
     }
 
     return ERROR_OK;
@@ -713,4 +737,11 @@ static void userdata_handler(iasp_session_t * const s, streambuf_t * data)
     debug_log("User data received for session: %p.\n", s);
     debug_print_binary(data->data, data->size);
     debug_newline();
+}
+
+
+void signal_handler(int signum)
+{
+    printf("\nSignal received: %d\n", signum);
+    exitflag = true;
 }

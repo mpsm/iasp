@@ -42,6 +42,7 @@ bool iasp_encode_mgmt_install_session(streambuf_t *sb, const iasp_mgmt_install_s
 bool iasp_encode_mgmt_spi(streambuf_t *sb, const iasp_mgmt_spi_t * const msg);
 bool iasp_encode_mgmt_token(streambuf_t *sb, const iasp_mgmt_token_t * const msg);
 bool iasp_encode_mgmt_status(streambuf_t *sb, const iasp_mgmt_status_t * const msg);
+bool iasp_encode_mgmt_terminate(streambuf_t *sb);
 
 
 #endif

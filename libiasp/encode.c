@@ -357,3 +357,9 @@ bool iasp_encode_mgmt_status(streambuf_t *sb, const iasp_mgmt_status_t * const m
 {
     return iasp_encode_varint(sb, IASP_MGMT_STATUS) && iasp_encode_status(sb, msg->status);
 }
+
+
+bool iasp_encode_mgmt_terminate(streambuf_t *sb)
+{
+    return iasp_encode_varint(sb, IASP_MGMT_TERMINATE);
+}

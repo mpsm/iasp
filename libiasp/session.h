@@ -84,6 +84,8 @@ iasp_session_result_t iasp_session_handle_any(void);
 /* commands */
 const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
 bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const size_t datasize);
+bool iasp_session_terminate(iasp_session_t * const s);
+void iasp_session_destroy(void);
 
 
 #endif

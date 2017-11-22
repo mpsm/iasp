@@ -21,6 +21,7 @@ typedef enum {
     IASP_MGMT_SPI = 3,
     IASP_MGMT_STATUS = 4,
     IASP_MGMT_TOKEN = 5,
+    IASP_MGMT_TERMINATE = 6,
 } iasp_mgmt_msg_code_t;
 
 
