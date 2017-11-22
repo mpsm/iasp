@@ -130,7 +130,7 @@ bool pki_load_cert(const char *filepath)
 
     /* read x509 file */
     new->x509 = d2i_X509_bio(in, NULL);
-    if(new->x509) {
+    if(new->x509 == NULL) {
         debug_log("PKI: Failed to load certificate.\n");
         return false;
     }
