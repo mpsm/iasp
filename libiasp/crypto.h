@@ -50,9 +50,6 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
         uint8_t *secret, size_t secretlen, const binbuf_t * const salt);
 bool crypto_ecdhe_pkey(const crypto_ecdhe_context_t *ecdhe_ctx, iasp_pkey_t * const pkey);
 
-/* OOB key authentication */
-void crypto_set_oob_key(const binbuf_t * const bb);
-
 /* ID generation */
 bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id);
 

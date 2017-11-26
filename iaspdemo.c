@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
         }
 
         /* set key */
-        crypto_set_oob_key(&oob);
+        crypto_openssl_set_oob_key(&oob);
     }
 
     /* add hint if present */

@@ -927,7 +927,7 @@ static void *kdf_common(const EVP_MD *md, const void *in, size_t inlen, void *ou
 }
 
 
-void crypto_set_oob_key(const binbuf_t * const bb)
+void crypto_openssl_set_oob_key(const binbuf_t * const bb)
 {
     oob = bb;
     sign_key.data = oob->buf;
