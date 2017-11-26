@@ -1,12 +1,14 @@
-#include "crypto.h"
 #include "crypto-openssl.h"
-#include "binbuf.h"
-#include "types.h"
-#include "config.h"
-#include "debug.h"
-#include "iasp.h"
-#include "spn.h"
-#include "security.h"
+
+#include "libiasp/crypto.h"
+
+#include "libiasp/binbuf.h"
+#include "libiasp/types.h"
+#include "libiasp/config.h"
+#include "libiasp/debug.h"
+#include "libiasp/iasp.h"
+#include "libiasp/spn.h"
+#include "libiasp/security.h"
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>

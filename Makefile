@@ -19,18 +19,17 @@ CFLAGS+=-I $(OPENSSL_PATH)/include
 LDFLAGS+= -L $(OPENSSL_PATH)
 endif
 
-all: unittest iasp
+SRCS:= $(wildcard *.c)
+OBJS:= $(SRCS:.c=.o)
 
-test: clean unittest
-	./unittest
+TARGET:= iaspdemo
 
-iasp: libiasp/libiasp.a
+all: $(TARGET)
 
-iasp: iasp.o pki.o 
+$(TARGET): libiasp/libiasp.a
+
+$(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) $^ -liasp -lcrypto -lconfig -ldl -o $@ 
-
-unittest: test.o libiasp/libiasp.a 
-	$(CC) $(LDFLAGS) $< -liasp -lcmocka -o $@
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
@@ -43,7 +42,9 @@ force:
 
 clean:
 	(cd libiasp && make clean)
-	rm -f test.o iasp.o pki.o
-	rm -f unittest iasp
+	rm -f $(OBJS)
 
-.PHONY: clean all test true
+distclean: clean
+	rm -f $(OBJS)
+
+.PHONY: clean all true

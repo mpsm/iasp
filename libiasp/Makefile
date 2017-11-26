@@ -1,12 +1,7 @@
-IASP_CRYPTO?= openssl
-IASP_NETWORK?= posix
-
 SRCS= \
 	streambuf.c \
 	encode.c \
 	binbuf.c \
-	crypto-$(IASP_CRYPTO).c \
-	network-$(IASP_NETWORK).c \
 	proto.c \
 	session.c \
 	iasp.c \

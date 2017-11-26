@@ -18,7 +18,6 @@
 #include "libiasp/iasp.h"
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
-#include "libiasp/crypto-openssl.h"
 #include "libiasp/streambuf.h"
 #include "libiasp/encode.h"
 #include "libiasp/network.h"
@@ -27,6 +26,7 @@
 #include "libiasp/debug.h"
 #include "libiasp/trust.h"
 
+#include "crypto-openssl.h"
 #include "pki.h"
 
 

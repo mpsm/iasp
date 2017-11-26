@@ -1,12 +1,13 @@
 #include "libiasp/debug.h"
 #include "libiasp/types.h"
-#include "libiasp/crypto-openssl.h"
 #include "libiasp/security.h"
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+
+#include "crypto-openssl.h"
 
 #include <assert.h>
 #include <errno.h>
