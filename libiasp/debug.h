@@ -25,6 +25,7 @@ void debug_print_spn(const iasp_spn_code_t spn);
 void debug_print_session(const iasp_session_t * const s);
 void debug_print_key(const iasp_key_t * const key);
 void debug_print_spi(const iasp_spi_t * const spi);
+void debug_print_ip(const iasp_ip_t * const ip);
 
 
 #elif IASP_DEBUG == 0
@@ -40,7 +41,7 @@ void debug_print_spi(const iasp_spi_t * const spi);
 #  define debug_print_session(X)    {}
 #  define debug_print_spi(X)        {}
 #  define debug_print_key(X)        {}
-
+#  define debug_print_ip(X)         {}
 
 #else
 #  error "Invalid IASP_DEBUG value"

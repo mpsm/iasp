@@ -27,6 +27,7 @@
 #include "libiasp/trust.h"
 
 #include "crypto-openssl.h"
+#include "network-posix.h"
 #include "pki.h"
 
 
@@ -151,7 +152,7 @@ int main(int argc, char *argv[])
     if(argc == 3) {
         iasp_ip_t ip;
 
-        if(!iasp_network_ip_from_str(&ip, argv[2])) {
+        if(!network_posix_ip_from_str(&ip, argv[2])) {
             fprintf(stderr, "Ivalid peer address: %s\n", argv[3]);
             exit(ERROR_ARGS);
         }
@@ -310,7 +311,7 @@ int main(int argc, char *argv[])
 
         /* set network address */
         debug_log("Network: binding address %s:%d\n", ip, IASP_DEFAULT_PORT);
-        if(!iasp_network_add_address_str(&myaddr, ip, IASP_DEFAULT_PORT)) {
+        if(!network_posix_add_address_str(&myaddr, ip, IASP_DEFAULT_PORT)) {
             fprintf(stderr, "Cannot assign specified address: %s\n", ip);
             perror("network");
             goto exit;
@@ -341,7 +342,7 @@ int main(int argc, char *argv[])
 
 exit:
     config_destroy(&cfg);
-    iasp_network_release_address(&myaddr);
+    network_posix_release_address(&myaddr);
     crypto_destroy();
     if(public_keys.keys) {
         free(public_keys.keys);
@@ -475,7 +476,7 @@ static int main_cd(const modecontext_t *ctx)
             goto exit;
         }
 
-        if(!iasp_network_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
+        if(!network_posix_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
             fprintf(stderr, "CD: invalid TP address %s", tpaddress_str);
             ret = ERROR_CONFIG;
             goto exit;
@@ -556,7 +557,7 @@ static int main_ffd(const modecontext_t *ctx)
             goto exit;
         }
 
-        if(!iasp_network_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
+        if(!network_posix_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
             fprintf(stderr, "FFD: invalid TP address %s", tpaddress_str);
             ret = ERROR_CONFIG;
             goto exit;
@@ -755,3 +756,10 @@ void signal_handler(int signum)
     printf("\nSignal received: %d\n", signum);
     exitflag = true;
 }
+
+
+void debug_print_ip(const iasp_ip_t * const ip)
+{
+    printf("%s", network_posix_ip_to_str(ip));
+}
+

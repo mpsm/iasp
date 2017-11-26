@@ -34,7 +34,7 @@ struct posix_net_aux {
 
 /* private methods */
 static bool network_rebuild_set(fd_set *set, int * const max_fd);
-
+static void iasp_network_address_init_empty(iasp_address_t * const address);
 
 /* private data */
 static struct posix_net_aux read_peer_aux;
@@ -154,7 +154,7 @@ bool iasp_network_receive(iasp_address_t * const address, iasp_address_t * const
 }
 
 
-bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const ip, const uint16_t port)
+bool network_posix_add_address(iasp_address_t * const address, iasp_ip_t * const ip, const uint16_t port)
 {
     struct posix_net_aux *aux;
 
@@ -188,7 +188,7 @@ bool iasp_network_add_address(iasp_address_t * const address, iasp_ip_t * const 
 }
 
 
-bool iasp_network_release_address(iasp_address_t * const address)
+bool network_posix_release_address(iasp_address_t * const address)
 {
     struct posix_net_aux *aux;
 
@@ -231,7 +231,7 @@ void iasp_network_address_init(iasp_address_t * const address, iasp_ip_t * const
 }
 
 
-void iasp_network_address_init_empty(iasp_address_t * const address)
+static void iasp_network_address_init_empty(iasp_address_t * const address)
 {
     struct posix_net_aux *aux;
 
@@ -265,7 +265,7 @@ void iasp_network_address2ip(const iasp_address_t * const address, iasp_ip_t * c
 }
 
 
-bool iasp_network_ip_from_str(iasp_ip_t * const ip, const char *str)
+bool network_posix_ip_from_str(iasp_ip_t * const ip, const char *str)
 {
     assert(ip != NULL);
     assert(str != NULL);
@@ -298,23 +298,23 @@ uint16_t iasp_network_address_port(const iasp_address_t * const address)
 }
 
 
-bool iasp_network_add_address_str(iasp_address_t * const address, const char *ip, const uint16_t port)
+bool network_posix_add_address_str(iasp_address_t * const address, const char *ip, const uint16_t port)
 {
     iasp_ip_t localip;
 
-    if(!iasp_network_ip_from_str(&localip, ip)) {
+    if(!network_posix_ip_from_str(&localip, ip)) {
         return false;
     }
 
-    return iasp_network_add_address(address, &localip, port);
+    return network_posix_add_address(address, &localip, port);
 }
 
 
-bool iasp_network_address_init_str(iasp_address_t * const address, const char *ip, const uint16_t port)
+bool network_posix_address_init_str(iasp_address_t * const address, const char *ip, const uint16_t port)
 {
     iasp_ip_t localip;
 
-    if(!iasp_network_ip_from_str(&localip, ip)) {
+    if(!network_posix_ip_from_str(&localip, ip)) {
         return false;
     }
 
@@ -325,7 +325,7 @@ bool iasp_network_address_init_str(iasp_address_t * const address, const char *i
 
 /* INFO: thread unsafe */
 #define IP_STR_BUFSIZE (4*8 + (8 - 1))
-const char *iasp_network_ip_to_str(const iasp_ip_t * const ip)
+const char *network_posix_ip_to_str(const iasp_ip_t * const ip)
 {
     static char buf[IP_STR_BUFSIZE];
 

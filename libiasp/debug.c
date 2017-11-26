@@ -84,11 +84,22 @@ void debug_print_pkey(const iasp_pkey_t *pkey)
 
 void debug_print_address(const iasp_address_t *addr)
 {
-    iasp_ip_t ip;
+    const iasp_ip_t *ip;
 
-    iasp_network_address2ip(addr, &ip);
+    ip = iasp_network_address_ip(addr);
+    debug_print_ip(ip);
+    printf(":%d", iasp_network_address_port(addr));
+}
 
-    printf("%s:%d", iasp_network_ip_to_str(&ip), iasp_network_address_port(addr));
+
+__attribute__((weak))
+void debug_print_ip(const iasp_ip_t * const ip)
+{
+    unsigned int i;
+
+    for(i = 0; i < sizeof(ip->ipdata); i += 2) {
+        printf("%02x%02x", ip->ipdata[i], ip->ipdata[i+1]);
+    }
 }
 
 
