@@ -52,7 +52,6 @@ static const crypto_context_t spn_map[] = {
 
 /* private variables */
 iasp_spn_support_t *spn = NULL;
-const security_public_keys_t *public_keys = NULL;
 const binbuf_t * oob = NULL;
 
 /* sign and verify context */
@@ -213,7 +212,7 @@ static iasp_spn_code_t crypto_match_spn(EC_KEY *key)
 }
 
 
-bool crypto_add_key(binbuf_t * const pkey)
+bool crypto_openssl_add_key(binbuf_t * const pkey)
 {
     const EC_GROUP *group;
     EC_KEY *key = NULL;
@@ -1008,22 +1007,6 @@ bool crypto_gen_salt(iasp_salt_t * const salt)
 {
     assert(salt != NULL);
     return RAND_bytes(salt->saltdata, sizeof(salt->saltdata)) == 1;
-}
-
-
-const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids)
-{
-    unsigned int i;
-
-    assert(ids != NULL);
-
-    for(i = 0; i < ids->id_count; ++i) {
-        if(ids->id[i].spn == spn) {
-            return &ids->id[i];
-        }
-    }
-
-    return NULL;
 }
 
 

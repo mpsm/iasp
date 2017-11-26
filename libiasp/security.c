@@ -71,6 +71,22 @@ bool security_add_pkey(iasp_pkey_t *pkey, bool privileged)
 }
 
 
+const iasp_identity_t * security_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids)
+{
+    unsigned int i;
+
+    assert(ids != NULL);
+
+    for(i = 0; i < ids->id_count; ++i) {
+        if(ids->id[i].spn == spn) {
+            return &ids->id[i];
+        }
+    }
+
+    return NULL;
+}
+
+
 const iasp_pkey_t *security_get_pkey_by_id(const iasp_identity_t * const id)
 {
     unsigned int i;

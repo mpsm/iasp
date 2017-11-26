@@ -43,7 +43,7 @@ force:
 
 clean:
 	(cd libiasp && make clean)
-	rm -f test.o iasp.o
+	rm -f test.o iasp.o pki.o
 	rm -f unittest iasp
 
 .PHONY: clean all test true

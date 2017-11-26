@@ -68,11 +68,21 @@ static const struct {
 };
 
 
+/* helper type */
+typedef struct {
+    size_t count;
+    struct {
+        iasp_pkey_t pubkey;
+        iasp_identity_t id;
+    } *keys;
+} public_keys_t;
+
+
 /* local buffer */
 static uint8_t iasp_buffer[IASP_BUFFER_SIZE];
 
 /* crypto context */
-static security_public_keys_t public_keys;
+static public_keys_t public_keys;
 static binbuf_t oob;
 
 /* local event data */
@@ -381,7 +391,7 @@ static bool add_key(const char *filename)
         return false;
     }
 
-    if(!crypto_add_key(&pkey_bb)) {
+    if(!crypto_openssl_add_key(&pkey_bb)) {
         printf("Crypto add key error: %s\n", filename);
         return false;
     }

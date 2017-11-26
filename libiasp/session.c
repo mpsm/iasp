@@ -1410,8 +1410,8 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
         memcpy(&child->sides[SESSION_SIDE_INITIATOR].addr, addr, sizeof(iasp_address_t));
     }
     memcpy(&child->sides[SESSION_SIDE_RESPONDER].addr, &msg.mgmt_req.peer_address, sizeof(iasp_address_t));
-    memcpy(&child->sides[SESSION_SIDE_INITIATOR].id, crypto_id_by_spn(spn, &tpdi->ids), sizeof(iasp_identity_t));
-    memcpy(&child->sides[SESSION_SIDE_RESPONDER].id, crypto_id_by_spn(spn, &tpdr->ids), sizeof(iasp_identity_t));
+    memcpy(&child->sides[SESSION_SIDE_INITIATOR].id, security_id_by_spn(spn, &tpdi->ids), sizeof(iasp_identity_t));
+    memcpy(&child->sides[SESSION_SIDE_RESPONDER].id, security_id_by_spn(spn, &tpdr->ids), sizeof(iasp_identity_t));
     crypto_gen_salt(&child->salt);
 
     /* prepare install session message */

@@ -8,21 +8,10 @@
 #include <stddef.h>
 
 
-typedef struct {
-    size_t count;
-    struct {
-        iasp_pkey_t pubkey;
-        iasp_identity_t id;
-    } *keys;
-} security_public_keys_t;
-
-
 typedef struct{
     void *ctx;
     iasp_spn_code_t spn;
 } crypto_ecdhe_context_t;
-
-bool crypto_add_key(binbuf_t * const pkey); /* TODO: remove/refactor */
 
 
 /* init and destroy */
@@ -33,7 +22,6 @@ void crypto_destroy(void);
 bool crypto_get_id(iasp_spn_code_t spn_code, iasp_identity_t *id);
 void crypto_get_ids(iasp_ids_t * const ids);
 bool crypto_get_pkey(iasp_spn_code_t, iasp_pkey_t * const pkey);
-const iasp_identity_t * crypto_id_by_spn(iasp_spn_code_t spn, const iasp_ids_t * const ids);
 
 /* encrypt / decrypt */
 bool crypto_encrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * const a, binbuf_t * const n,
