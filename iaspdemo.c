@@ -757,9 +757,9 @@ void signal_handler(int signum)
     exitflag = true;
 }
 
-
+#if IASP_DEBUG == 1
 void debug_print_ip(const iasp_ip_t * const ip)
 {
     printf("%s", network_posix_ip_to_str(ip));
 }
-
+#endif
