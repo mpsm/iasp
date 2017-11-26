@@ -2,7 +2,6 @@
 #define __IASP_H__
 
 #include "types.h"
-#include "role.h"
 
 #include <stdbool.h>
 #include <stdint.h>

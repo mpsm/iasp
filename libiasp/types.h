@@ -44,6 +44,17 @@ typedef enum {
 } iasp_status_t;
 
 
+typedef enum {
+    IASP_ROLE_CD = 0,
+    IASP_ROLE_FFD = 1,
+    IASP_ROLE_TP = 2,
+
+    /* sentinel */
+    IASP_ROLE_MAX
+} iasp_role_t;
+
+
+
 typedef union {
     struct {
         unsigned char send_pkey:1;

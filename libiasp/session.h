@@ -4,7 +4,6 @@
 #include "network.h"
 #include "proto.h"
 #include "types.h"
-#include "role.h"
 
 #include <stdint.h>
 #include <stdbool.h>
