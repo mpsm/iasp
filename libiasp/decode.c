@@ -4,7 +4,7 @@
 #include "config.h"
 #include "field.h"
 #include "crypto.h"
-#include "network.h"
+#include "address.h"
 
 #include <arpa/inet.h>
 #include <assert.h>

@@ -10,6 +10,7 @@
 #include "ffd.h"
 #include "debug.h"
 #include "trust.h"
+#include "address.h"
 
 #include <arpa/inet.h>
 #include <assert.h>

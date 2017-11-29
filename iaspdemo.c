@@ -20,11 +20,11 @@
 #include "libiasp/crypto.h"
 #include "libiasp/streambuf.h"
 #include "libiasp/encode.h"
-#include "libiasp/network.h"
 #include "libiasp/types.h"
 #include "libiasp/session.h"
 #include "libiasp/debug.h"
 #include "libiasp/trust.h"
+#include "libiasp/address.h"
 
 #include "crypto-openssl.h"
 #include "network-posix.h"

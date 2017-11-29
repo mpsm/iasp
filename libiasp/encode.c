@@ -1,7 +1,7 @@
 #include "encode.h"
 #include "streambuf.h"
 #include "field.h"
-#include "network.h"
+#include "address.h"
 
 #include <arpa/inet.h>
 #include <assert.h>

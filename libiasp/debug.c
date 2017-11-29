@@ -2,7 +2,7 @@
 
 #include "debug.h"
 #include "types.h"
-#include "network.h"
+#include "address.h"
 #include "session.h"
 
 #include <time.h>

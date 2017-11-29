@@ -1,6 +1,7 @@
 #include "libiasp/network.h"
 #include "libiasp/types.h"
 #include "libiasp/binbuf.h"
+#include "libiasp/address.h"
 
 #include <sys/time.h>
 #include <sys/types.h>
