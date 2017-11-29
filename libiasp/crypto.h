@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define IASP_CRYPTO_TAG_LENGTH      (4)
+
 
 typedef struct{
     void *ctx;

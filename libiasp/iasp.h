@@ -8,41 +8,42 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-
 #define IASP_DEFAULT_PORT           (35491)
-#define IASP_CRYPTO_TAG_LENGTH      (4)
+
+/* command status */
+typedef enum {
+    IASP_CMD_OK = 0,
+    IASP_CMD_ERROR = 1,
+    IASP_CMD_TIMEOUT = 2,
+    IASP_CMD_INVALID_MSG = 3,
+    IASP_CMD_NOMEM = 4,
+
+    IASP_CMD_MAX
+} iasp_result_t;
 
 
+/* event definition */
+typedef enum {
+    IASP_EVENT_ESTABLISHED,
+    IASP_EVENT_TERMINATED,
+    IASP_EVENT_REDIRECT,
+
+    /* sentinel */
+    IASP_EVENT_MAX
+} iasp_event_t;
+
+
+/* negotiation side data */
 typedef struct {
     iasp_identity_t id;
     iasp_nonce_t nonce;
     iasp_key_t key;
     iasp_spi_t spi;
     iasp_session_flags_t flags;
-} iasp_session_side_data_t;
+} iasp_side_data_t;
 
 
-typedef enum {
-    SESSION_CMD_OK = 0,
-    SESSION_CMD_ERROR = 1,
-    SESSION_CMD_TIMEOUT = 2,
-    SESSION_CMD_INVALID_MSG = 3,
-    SESSION_CMD_NOMEM = 4,
-
-    SESSION_CMD_MAX
-} iasp_session_result_t;
-
-
-typedef enum {
-    SESSION_EVENT_ESTABLISHED,
-    SESSION_EVENT_TERMINATED,
-    SESSION_EVENT_REDIRECT,
-
-    /* sentinel */
-    SESSION_EVENT_MAX
-} iasp_session_event_t;
-
-
+/* session data */
 typedef struct _iasp_session_t {
     bool active;
     iasp_proto_ctx_t pctx;
@@ -52,7 +53,7 @@ typedef struct _iasp_session_t {
     bool established;
 
     /* negotiation sides data */
-    iasp_session_side_data_t sides[SESSION_SIDE_COUNT];
+    iasp_side_data_t sides[SESSION_SIDE_COUNT];
 
     /* redirected session pointer */
     struct _iasp_session_t *redirect;
@@ -65,40 +66,29 @@ typedef struct _iasp_session_t {
 } iasp_session_t;
 
 
+/* event handler type */
+typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_event_t e);
+typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, streambuf_t * const sb);
+
+
 /* init IASP */
 void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize);
 
-/* set/get hint */
+/* setters */
 void iasp_set_hint(const char *s);
-bool iasp_get_hint(iasp_hint_t *h);
+void iasp_set_tpaddr(const iasp_address_t *const tpaddr);
 
 /* get my role */
 iasp_role_t iasp_get_role(void);
 
-/* get/set TP addres */
-void iasp_set_tpaddr(const iasp_address_t *const tpaddr);
-const iasp_address_t * iasp_get_tpaddr(void);
-
-/* event handler type */
-typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_session_event_t e);
-typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, streambuf_t * const sb);
-
-/* global methods */
-void iasp_sessions_reset(void);
-void iasp_session_set_role(iasp_role_t r);
-iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer);
+/* set callbacks */
 void iasp_session_set_cb(iasp_session_cb_t cb);
 void iasp_session_set_userdata_cb(iasp_session_userdata_cb_t cb);
 
-
-/* per-session methods */
-void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr);
-void iasp_session_respond(iasp_session_t * const this);
-iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr);
-iasp_session_result_t iasp_session_handle_any(void);
-
-/* commands */
+/* session commands */
 const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
+iasp_result_t iasp_session_handle_addr(iasp_address_t * const addr);
+iasp_result_t iasp_session_handle_any(void);
 bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const size_t datasize);
 bool iasp_session_terminate(iasp_session_t * const s);
 void iasp_session_destroy(void);

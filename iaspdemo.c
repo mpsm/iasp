@@ -83,17 +83,17 @@ static public_keys_t public_keys;
 static binbuf_t oob;
 
 /* local event data */
-static iasp_session_event_t last_event = SESSION_EVENT_MAX;
+static iasp_event_t last_event = IASP_EVENT_MAX;
 static iasp_session_t *last_event_session = NULL;
 
 /* local methods */
 static bool add_key(const char *filename);
 static bool read_file(const char *filename, binbuf_t *bb);
 static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
-static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e, int retries);
+static bool event_wait(const iasp_session_t * const s, iasp_event_t e, int retries);
 
 /* default event handler */
-static void event_handler(iasp_session_t * const s, iasp_session_event_t e);
+static void event_handler(iasp_session_t * const s, iasp_event_t e);
 static void userdata_handler(iasp_session_t * const s, streambuf_t * data);
 
 /* signal handler */
@@ -497,7 +497,7 @@ static int main_cd(const modecontext_t *ctx)
         
         /* set TP session */
         tpses = iasp_session_start(ctx->address, &tpaddr);
-        if(!event_wait(tpses, SESSION_EVENT_ESTABLISHED, 3)) {
+        if(!event_wait(tpses, IASP_EVENT_ESTABLISHED, 3)) {
             debug_log("Could not establish TP session.\n");
             goto exit;
         }
@@ -510,7 +510,7 @@ static int main_cd(const modecontext_t *ctx)
                 goto exit;
             }
 
-            if(!event_wait(peerses, SESSION_EVENT_ESTABLISHED, 5)) {
+            if(!event_wait(peerses, IASP_EVENT_ESTABLISHED, 5)) {
                 debug_log("Could not establish peer session.\n");
                 goto exit;
             }
@@ -566,7 +566,7 @@ static int main_ffd(const modecontext_t *ctx)
         const iasp_session_t *tpses;
         
         tpses = iasp_session_start(ctx->address, &tpaddr);
-        if(!event_wait(tpses, SESSION_EVENT_ESTABLISHED, 3)) {
+        if(!event_wait(tpses, IASP_EVENT_ESTABLISHED, 3)) {
             debug_log("Could not establish TP session.\n");
             goto exit;
         }
@@ -631,10 +631,10 @@ static int main_tp(const modecontext_t *ctx)
 
     for(;;) {
         switch(iasp_session_handle_any()) {
-            case SESSION_CMD_TIMEOUT:
+            case IASP_CMD_TIMEOUT:
                 break;
 
-            case SESSION_CMD_OK:
+            case IASP_CMD_OK:
                 debug_log("Message processing OK.\n");
                 break;
 
@@ -653,7 +653,7 @@ static int main_tp(const modecontext_t *ctx)
 }
 
 
-static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
+static void event_handler(iasp_session_t * const s, iasp_event_t e)
 {
     debug_log("Event %d received for session %p.\n", e, s);
 
@@ -663,7 +663,7 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
 
     /* process event */
     switch(e) {
-        case SESSION_EVENT_ESTABLISHED:
+        case IASP_EVENT_ESTABLISHED:
             debug_log("Session established.\n");
             debug_newline();
             debug_print_session(s);
@@ -671,11 +671,11 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
             iasp_session_send_userdata(s, (const uint8_t *)"test", 4);
             break;
 
-        case SESSION_EVENT_TERMINATED:
+        case IASP_EVENT_TERMINATED:
             debug_log("Session terminated.\n");
             break;
 
-        case SESSION_EVENT_REDIRECT:
+        case IASP_EVENT_REDIRECT:
             debug_log("Session redirect.\n");
             break;
 
@@ -686,7 +686,7 @@ static void event_handler(iasp_session_t * const s, iasp_session_event_t e)
 
 
 
-static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e,
+static bool event_wait(const iasp_session_t * const s, iasp_event_t e,
         int max_retries)
 {
     unsigned int i;
@@ -703,11 +703,11 @@ static bool event_wait(const iasp_session_t * const s, iasp_session_event_t e,
     /* process incoming messages */
     for(i = 0; i < retries;) {
         switch(iasp_session_handle_any()) {
-            case SESSION_CMD_TIMEOUT:
+            case IASP_CMD_TIMEOUT:
                 i++;
                 break;
 
-            case SESSION_CMD_OK:
+            case IASP_CMD_OK:
                 if(last_event == e) {
                     if(s != NULL && s != last_event_session) {
                         continue;

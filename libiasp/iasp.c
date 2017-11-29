@@ -39,7 +39,7 @@ static iasp_role_t role;
 
 /* private methods */
 static void iasp_reset_message(void);
-static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
+static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
@@ -51,6 +51,10 @@ static bool iasp_session_send_hmsg(iasp_session_t * const s, streambuf_t * paylo
 static void iasp_session_get_iv(iasp_session_t *s, binbuf_t *bbiv, bool output);
 static void iasp_session_get_aad(iasp_session_t * const s, binbuf_t *bbaad);
 static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * const payload);
+static bool iasp_copy_hint(iasp_hint_t *h);
+static void iasp_sessions_reset(void);
+static iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer);
+static void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr);
 
 
 /* message handlers - handshake */
@@ -129,12 +133,11 @@ static binbuf_t iasp_hint;
 static const iasp_address_t *tpaddr;
 
 
-void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize)
+void iasp_init(iasp_role_t iasp_role, uint8_t *buf, size_t bufsize)
 {
     crypto_init();
     iasp_proto_init(buf, bufsize);
-    iasp_role = role;
-    iasp_session_set_role(role);
+    role = iasp_role;
     iasp_sessions_reset();
     memset(&iasp_hint, 0, sizeof(binbuf_t));
 }
@@ -155,7 +158,7 @@ void iasp_set_hint(const char *s)
 }
 
 
-bool iasp_get_hint(iasp_hint_t *h)
+static bool iasp_copy_hint(iasp_hint_t *h)
 {
     assert(h != NULL);
 
@@ -177,11 +180,6 @@ void iasp_set_tpaddr(const iasp_address_t *const _tpaddr)
 }
 
 
-const iasp_address_t * iasp_get_tpaddr()
-{
-    return tpaddr;
-}
-
 const session_handler_lookup_t *handlers[IASP_ROLE_MAX] =
 {
         cd_session_handlers, ffd_session_handlers, tp_session_handlers
@@ -202,7 +200,7 @@ void iasp_session_set_userdata_cb(iasp_session_userdata_cb_t cb)
 }
 
 
-void iasp_sessions_reset()
+static void iasp_sessions_reset()
 {
     memset(sessions, 0, IASP_CONFIG_MAX_SESSIONS * sizeof(iasp_session_t));
 }
@@ -215,7 +213,7 @@ void iasp_session_set_role(iasp_role_t r)
 }
 
 
-iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer)
+static iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     unsigned int i;
 
@@ -233,7 +231,7 @@ iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_
 }
 
 
-void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr)
+static void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr)
 {
     assert(addr != NULL);
     assert(peer_addr != NULL);
@@ -302,7 +300,7 @@ const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp
 }
 
 
-iasp_session_result_t iasp_session_handle_any()
+iasp_result_t iasp_session_handle_any()
 {
     iasp_address_t addr = { NULL };
 
@@ -310,7 +308,7 @@ iasp_session_result_t iasp_session_handle_any()
 }
 
 
-iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr)
+iasp_result_t iasp_session_handle_addr(iasp_address_t * const addr)
 {
     iasp_proto_ctx_t pctx;
     streambuf_t *sb;
@@ -323,7 +321,7 @@ iasp_session_result_t iasp_session_handle_addr(iasp_address_t * const addr)
 
     /* receive with timeout */
     if(!iasp_proto_receive(addr, &pctx, NULL, IASP_SESSION_RECV_TIMEOUT)) {
-        return SESSION_CMD_TIMEOUT;
+        return IASP_CMD_TIMEOUT;
     }
     sb = iasp_proto_get_payload_sb();
 
@@ -346,7 +344,7 @@ static void iasp_reset_message()
 
 
 /* MESSAGE HANDLERS */
-static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
+static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
 {
     unsigned int msg_code;
     uint16_t lookup_code;
@@ -385,12 +383,12 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
     if(s == NULL) {
 #if 0
         if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
-            return SESSION_CMD_INVALID_MSG;
+            return IASP_CMD_INVALID_MSG;
         }
 #endif
         s = iasp_session_new(&pctx->addr, &pctx->peer);
         if(s == NULL) {
-            return SESSION_CMD_NOMEM;
+            return IASP_CMD_NOMEM;
         }
     }
     else {
@@ -401,11 +399,11 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
         /* decrypt if received msg is encrypted */
         if(pctx->encrypted) {
             if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
-                return SESSION_CMD_INVALID_MSG;
+                return IASP_CMD_INVALID_MSG;
             }
             if(!iasp_session_decrypt_msg(s, payload)) {
                 debug_log("Invalid decrypt.\n");
-                return SESSION_CMD_INVALID_MSG;
+                return IASP_CMD_INVALID_MSG;
             }
         }
     }
@@ -414,18 +412,18 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
     if(pctx->msg_type == IASP_MSG_USER) {
         if(userdata_cb) {
             userdata_cb(s, iasp_proto_get_payload_sb());
-            return SESSION_CMD_OK;
+            return IASP_CMD_OK;
         }
     }
 
     /* get message code */
     if(!iasp_decode_varint(payload, &msg_code)) {
-        return SESSION_CMD_INVALID_MSG;
+        return IASP_CMD_INVALID_MSG;
     }
 
     /* check range */
     if(msg_code >= UINT8_MAX) {
-        return SESSION_CMD_INVALID_MSG;
+        return IASP_CMD_INVALID_MSG;
     }
 
     /* find handler */
@@ -440,7 +438,7 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
 
     /* found handler */
     if(lookup->handler == NULL) {
-        return SESSION_CMD_INVALID_MSG;
+        return IASP_CMD_INVALID_MSG;
     }
 
     /* reset decode space */
@@ -448,10 +446,10 @@ static iasp_session_result_t iasp_handle_message(const iasp_proto_ctx_t * const 
 
     /* handle message */
     if(lookup->handler(s, payload) == false) {
-        return SESSION_CMD_ERROR;
+        return IASP_CMD_ERROR;
     }
 
-    return SESSION_CMD_OK;
+    return IASP_CMD_OK;
 }
 
 
@@ -459,7 +457,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 {
     streambuf_t *reply;
     iasp_identity_t *iid = NULL;
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
     unsigned int j;
 
     /* decode message */
@@ -541,10 +539,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
         }
     }
     else {
-        const iasp_address_t *tpaddr;
-
         /* add TP address and redirect */
-        tpaddr = iasp_get_tpaddr();
         if(tpaddr == NULL) {
             debug_log("Cannot get TP address to redirect.\n");
             return false;
@@ -569,7 +564,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 {
     uint8_t byte;
     streambuf_t *reply;
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
 
     /* mark session side */
     s->side = SESSION_SIDE_INITIATOR;
@@ -636,7 +631,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     /* set hint if needed */
     if(r->flags.bits.send_hint) {
         msg.hmsg_init_auth.has_hint = true;
-        if(!iasp_get_hint(&msg.hmsg_init_auth.hint)) {
+        if(!iasp_copy_hint(&msg.hmsg_init_auth.hint)) {
             return false;
         }
     }
@@ -737,7 +732,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     streambuf_t *reply;
     iasp_tpdata_t *tpd = (iasp_tpdata_t *)s->aux;
     const iasp_pkey_t *pkey;
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
 
     /* decode message */
     if(!iasp_decode_hmsg_init_auth(sb, &msg.hmsg_init_auth)) {
@@ -925,7 +920,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* set hint if needed */
     if(i->flags.bits.send_hint) {
         msg.hmsg_resp_auth.has_hint = true;
-        if(!iasp_get_hint(&msg.hmsg_resp_auth.hint)) {
+        if(!iasp_copy_hint(&msg.hmsg_resp_auth.hint)) {
             return false;
         }
     }
@@ -1017,7 +1012,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 
     /* event callback */
     if(event_cb != NULL) {
-        event_cb(s, SESSION_EVENT_ESTABLISHED);
+        event_cb(s, IASP_EVENT_ESTABLISHED);
     }
 
     return true;
@@ -1027,7 +1022,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
 static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const sb)
 {
     uint8_t byte;
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
     crypto_ecdhe_context_t *ecdhe_ctx = NULL;
 
     /* decode message */
@@ -1188,7 +1183,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
 
     /* event callback */
     if(event_cb != NULL) {
-        event_cb(s, SESSION_EVENT_ESTABLISHED);
+        event_cb(s, IASP_EVENT_ESTABLISHED);
     }
 
     return true;
@@ -1202,7 +1197,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
     binbuf_t saltbb;
     size_t keysize = spn_get_key_size(pkey->spn);
     size_t gensize = 2*keysize + sizeof(iasp_salt_t);
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
 
     assert(gensize <= sizeof(buffer));
 
@@ -1239,7 +1234,7 @@ static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * 
 
 static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const sb)
 {
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
     iasp_session_t *redirect;
 
     /* decode message */
@@ -1253,7 +1248,7 @@ static bool iasp_handler_redirect(iasp_session_t * const s, streambuf_t * const 
 
     /* event callback */
     if(event_cb != NULL) {
-        event_cb(s, SESSION_EVENT_REDIRECT);
+        event_cb(s, IASP_EVENT_REDIRECT);
     }
 
     /* set SPN */
@@ -1514,7 +1509,7 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
 {
     iasp_session_t * peer_session;
     iasp_address_t * my_address;
-    iasp_session_side_data_t *i, *r;
+    iasp_side_data_t *i, *r;
     streambuf_t * reply;
 
     if(!iasp_decode_mgmt_install_session(sb, &msg.mgmt_install)) {
@@ -1617,7 +1612,7 @@ static bool iasp_handler_mgmt_install(iasp_session_t * const s, streambuf_t * co
 
     /* event notify */
     if(event_cb != NULL) {
-        event_cb(peer_session, SESSION_EVENT_ESTABLISHED);
+        event_cb(peer_session, IASP_EVENT_ESTABLISHED);
     }
 
     return true;
