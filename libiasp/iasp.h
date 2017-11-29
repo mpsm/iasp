@@ -1,9 +1,24 @@
 #ifndef __IASP_SESSION_H__
 #define __IASP_SESSION_H__
 
+#include "address.h"
+#include "binbuf.h"
+#include "config.h"
+#include "crypto.h"
+#include "decode.h"
+#include "encode.h"
+#include "ffd.h"
+#include "field.h"
+#include "message.h"
 #include "network.h"
 #include "proto.h"
+#include "security.h"
+#include "spn.h"
+#include "streambuf.h"
+#include "tp.h"
+#include "trust.h"
 #include "types.h"
+
 
 #include <stdint.h>
 #include <stdbool.h>

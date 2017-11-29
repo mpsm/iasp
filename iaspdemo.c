@@ -17,10 +17,6 @@
 
 #include "libiasp/iasp.h"
 #include "libiasp/debug.h"
-#include "libiasp/crypto.h"
-#include "libiasp/address.h"
-#include "libiasp/security.h"
-#include "libiasp/trust.h"
 
 #include "crypto-openssl.h"
 #include "network-posix.h"
