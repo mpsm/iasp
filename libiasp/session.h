@@ -9,6 +9,10 @@
 #include <stdbool.h>
 
 
+#define IASP_DEFAULT_PORT           (35491)
+#define IASP_CRYPTO_TAG_LENGTH      (4)
+
+
 typedef struct {
     iasp_identity_t id;
     iasp_nonce_t nonce;
@@ -61,10 +65,23 @@ typedef struct _iasp_session_t {
 } iasp_session_t;
 
 
+/* init IASP */
+void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize);
+
+/* set/get hint */
+void iasp_set_hint(const char *s);
+bool iasp_get_hint(iasp_hint_t *h);
+
+/* get my role */
+iasp_role_t iasp_get_role(void);
+
+/* get/set TP addres */
+void iasp_set_tpaddr(const iasp_address_t *const tpaddr);
+const iasp_address_t * iasp_get_tpaddr(void);
+
 /* event handler type */
 typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_session_event_t e);
 typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, streambuf_t * const sb);
-
 
 /* global methods */
 void iasp_sessions_reset(void);

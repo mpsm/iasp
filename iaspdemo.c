@@ -15,7 +15,6 @@
 #include <string.h>
 #include <signal.h>
 
-#include "libiasp/iasp.h"
 #include "libiasp/binbuf.h"
 #include "libiasp/crypto.h"
 #include "libiasp/streambuf.h"

@@ -6,7 +6,6 @@
 #include "libiasp/types.h"
 #include "libiasp/config.h"
 #include "libiasp/debug.h"
-#include "libiasp/iasp.h"
 #include "libiasp/spn.h"
 #include "libiasp/security.h"
 

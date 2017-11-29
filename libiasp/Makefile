@@ -4,7 +4,6 @@ SRCS= \
 	binbuf.c \
 	proto.c \
 	session.c \
-	iasp.c \
 	decode.c \
 	tp.c \
 	debug.c \
