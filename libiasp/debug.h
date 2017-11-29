@@ -1,9 +1,9 @@
 #ifndef __IASP_DEBUG_H__
 #define __IASP_DEBUG_H__
 
+#include "iasp.h"
 #include "types.h"
 #include "network.h"
-#include "session.h"
 
 #include <stdint.h>
 #include <stddef.h>

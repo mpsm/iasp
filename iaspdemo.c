@@ -15,15 +15,12 @@
 #include <string.h>
 #include <signal.h>
 
-#include "libiasp/binbuf.h"
-#include "libiasp/crypto.h"
-#include "libiasp/streambuf.h"
-#include "libiasp/encode.h"
-#include "libiasp/types.h"
-#include "libiasp/session.h"
+#include "libiasp/iasp.h"
 #include "libiasp/debug.h"
-#include "libiasp/trust.h"
+#include "libiasp/crypto.h"
 #include "libiasp/address.h"
+#include "libiasp/security.h"
+#include "libiasp/trust.h"
 
 #include "crypto-openssl.h"
 #include "network-posix.h"

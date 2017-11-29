@@ -1,9 +1,10 @@
 #if defined(IASP_DEBUG) && IASP_DEBUG == 1
 
+#include "iasp.h"
+
 #include "debug.h"
 #include "types.h"
 #include "address.h"
-#include "session.h"
 
 #include <time.h>
 #include <stdio.h>
