@@ -379,40 +379,28 @@ static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, st
         }
     }
 
-    /* create new session */
-    if(s == NULL) {
-#if 0
-        if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
+
+
+    /* process decryption */
+    if(pctx->encrypted) {
+        /* if there is no session - abort */
+        if(s == NULL) {
             return IASP_CMD_INVALID_MSG;
         }
-#endif
-        s = iasp_session_new(&pctx->addr, &pctx->peer);
-        if(s == NULL) {
-            return IASP_CMD_NOMEM;
+
+        /* check msg type */
+        if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
+            return IASP_CMD_INVALID_MSG;
         }
-    }
-    else {
+
         /* copy crucial data */
         s->pctx.input_seq = pctx->input_seq;
         s->pctx.input_spi = pctx->input_spi;
 
-        /* decrypt if received msg is encrypted */
-        if(pctx->encrypted) {
-            if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
-                return IASP_CMD_INVALID_MSG;
-            }
-            if(!iasp_session_decrypt_msg(s, payload)) {
-                debug_log("Invalid decrypt.\n");
-                return IASP_CMD_INVALID_MSG;
-            }
-        }
-    }
-
-    /* check message type for user data */
-    if(pctx->msg_type == IASP_MSG_USER) {
-        if(userdata_cb) {
-            userdata_cb(s, iasp_proto_get_payload_sb());
-            return IASP_CMD_OK;
+        /* decrypt */
+        if(!iasp_session_decrypt_msg(s, payload)) {
+            debug_log("Invalid decrypt.\n");
+            return IASP_CMD_INVALID_MSG;
         }
     }
 
@@ -439,6 +427,29 @@ static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, st
     /* found handler */
     if(lookup->handler == NULL) {
         return IASP_CMD_INVALID_MSG;
+    }
+
+    /* create new session if needed */
+    if(s == NULL) {
+        /* create session only on init hello */
+        if(lookup_code != MSG_CODE(IASP_MSG_HANDSHAKE, IASP_HMSG_INIT_HELLO)) {
+            return IASP_CMD_INVALID_MSG;
+        }
+
+        /* create new session */
+        s = iasp_session_new(&pctx->addr, &pctx->peer);
+        if(s == NULL) {
+            return IASP_CMD_NOMEM;
+        }
+    }
+
+
+    /* check message type for user data */
+    if(pctx->msg_type == IASP_MSG_USER) {
+        if(userdata_cb) {
+            userdata_cb(s, iasp_proto_get_payload_sb());
+            return IASP_CMD_OK;
+        }
     }
 
     /* reset decode space */
