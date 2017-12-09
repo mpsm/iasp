@@ -84,6 +84,7 @@ void iasp_proto_bump_pn(iasp_proto_ctx_t * const this);
 void iasp_proto_init(uint8_t * obuf, size_t obuflen);
 streambuf_t * iasp_proto_get_payload_sb(void);
 void iasp_proto_reset_payload(void);
+bool iasp_proto_get_inner_header(iasp_proto_ctx_t * const pctx);
 void iasp_proto_put_outer_hdr(uint8_t *buf, bool encrypted, iasp_pv_t pv, iasp_spn_code_t spn);
 void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answer, uint8_t pn);
 bool iasp_proto_put_security_hdr(streambuf_t *sb, iasp_spi_t spi, uint32_t seq);

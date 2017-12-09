@@ -165,11 +165,26 @@ void iasp_proto_bump_pn(iasp_proto_ctx_t * const this)
 }
 
 
+bool iasp_proto_get_inner_header(iasp_proto_ctx_t * const pctx)
+{
+    iasp_inner_hdr_t ih;
+
+    /* read inner header */
+    if(!streambuf_read(&packet_sb, &ih.byte, sizeof(ih))) {
+        return false;
+    }
+    pctx->msg_type = ih.bits.mt;
+    pctx->answer = ih.bits.a;
+    pctx->pn = ih.bits.pn;
+
+    return true;
+}
+
+
 bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pctx, streambuf_t * const payload,
         unsigned int timeout)
 {
     binbuf_t bb;
-    iasp_inner_hdr_t ih;
     iasp_outer_header_t oh;
     iasp_secure_header_t sh;
     streambuf_t *psb;
@@ -213,23 +228,15 @@ bool iasp_proto_receive(iasp_address_t * const addr, iasp_proto_ctx_t * const pc
         pctx->input_spi = sh.spi;
     }
 
-    /* read inner header */
-    if(!streambuf_read(&packet_sb, &ih.byte, sizeof(ih))) {
-        return false;
-    }
-    pctx->msg_type = ih.bits.mt;
-    pctx->answer = ih.bits.a;
-    pctx->pn = ih.bits.pn;
-
     /* set payload */
     psb = payload == NULL ? &payload_sb : payload;
     payload_size = packet_sb.size - packet_sb.read_index;
     streambuf_init(psb, packet_sb.data + packet_sb.read_index, payload_size, payload_size);
 
     /* debug */
-    debug_log("Message received: %s, answer: %s, PV=%u, SPN=%u, MT=%u, PN=%u, payload size: %u bytes.\n",
+    debug_log("Message received: %s, answer: %s, PV=%u, SPN=%u, payload size: %u bytes.\n",
             pctx->encrypted ? "encrypted" : "not encrypted",
-            pctx->answer ? "yes" : "no", pctx->pv, pctx->spn, pctx->msg_type, pctx->pn, psb->size);
+            pctx->answer ? "yes" : "no", pctx->pv, pctx->spn, psb->size);
     if(pctx->encrypted) {
         debug_log("Packet SPI: ");
         debug_print_spi(&sh.spi);

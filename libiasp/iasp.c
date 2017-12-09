@@ -39,7 +39,7 @@ static iasp_role_t role;
 
 /* private methods */
 static void iasp_reset_message(void);
-static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
+static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambuf_t * const payload);
 static bool iasp_session_generate_secret(iasp_session_t *s, const iasp_pkey_t * const pkey, const crypto_ecdhe_context_t *ecdhe_ctx);;
 static iasp_session_t *iasp_session_by_peer(const iasp_address_t * const peer);
 static iasp_session_t *iasp_session_by_peer_ip(const iasp_address_t * const peer);
@@ -55,6 +55,7 @@ static bool iasp_copy_hint(iasp_hint_t *h);
 static void iasp_sessions_reset(void);
 static iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer);
 static void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, const iasp_address_t *addr, const iasp_address_t *peer_addr);
+static iasp_session_t * iasp_get_session_by_spi(const iasp_spi_t * const spi);
 
 
 /* message handlers - handshake */
@@ -259,6 +260,39 @@ static void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, co
 }
 
 
+static iasp_session_t * iasp_get_session_by_spi(const iasp_spi_t * const spi)
+{
+    unsigned int i;
+
+    for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
+        iasp_session_t *s;
+        iasp_spi_t *check_spi;
+
+        /* check flags */
+        if(!sessions[i].active || !sessions[i].established) {
+            continue;
+        }
+
+        s = &sessions[i];
+
+        /* TODO: refactor */
+        if(s->side == SESSION_SIDE_INITIATOR) {
+            check_spi = &s->sides[SESSION_SIDE_RESPONDER].spi;
+        }
+        else {
+            check_spi = &s->sides[SESSION_SIDE_INITIATOR].spi;
+        }
+
+        /* compare SPI values */
+        if(check_spi->spi == spi->spi) {
+            return s;
+        }
+    }
+
+    return NULL;
+}
+
+
 const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     streambuf_t *sb;
@@ -344,17 +378,44 @@ static void iasp_reset_message()
 
 
 /* MESSAGE HANDLERS */
-static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
+static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambuf_t * const payload)
 {
     unsigned int msg_code;
     uint16_t lookup_code;
     const session_handler_lookup_t *lookup;
     iasp_session_t *s = NULL;
 
-    /* find session */
-    {
+    /* process decryption */
+    if(pctx->encrypted) {
+        /* find session with input spi value */
+        s = iasp_get_session_by_spi(&pctx->input_spi);
+
+        /* if there is no session - abort */
+        if(s == NULL) {
+            return IASP_CMD_INVALID_MSG;
+        }
+
+        debug_log("Found session for decryption: %p\n", s);
+
+        /* check msg type */
+        if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
+            return IASP_CMD_INVALID_MSG;
+        }
+
+        /* copy crucial data */
+        s->pctx.input_seq = pctx->input_seq;
+        s->pctx.input_spi = pctx->input_spi;
+
+        /* decrypt */
+        if(!iasp_session_decrypt_msg(s, payload)) {
+            debug_log("Invalid decrypt.\n");
+            return IASP_CMD_INVALID_MSG;
+        }
+    }
+    else {
         unsigned int i;
 
+        /* find session */
         for(i = 0; i < IASP_CONFIG_MAX_SESSIONS; ++i) {
             iasp_proto_ctx_t *p;
 
@@ -379,33 +440,23 @@ static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, st
         }
     }
 
+    /* get inner header */
+    if(!iasp_proto_get_inner_header(pctx)) {
+        debug_log("Cannot get inner header.\n");
+        return IASP_CMD_INVALID_MSG;
+    }
 
-
-    /* process decryption */
-    if(pctx->encrypted) {
-        /* if there is no session - abort */
-        if(s == NULL) {
-            return IASP_CMD_INVALID_MSG;
-        }
-
-        /* check msg type */
-        if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
-            return IASP_CMD_INVALID_MSG;
-        }
-
-        /* copy crucial data */
-        s->pctx.input_seq = pctx->input_seq;
-        s->pctx.input_spi = pctx->input_spi;
-
-        /* decrypt */
-        if(!iasp_session_decrypt_msg(s, payload)) {
-            debug_log("Invalid decrypt.\n");
-            return IASP_CMD_INVALID_MSG;
+    /* check message type for user data */
+    if(pctx->msg_type == IASP_MSG_USER) {
+        if(userdata_cb) {
+            userdata_cb(s, iasp_proto_get_payload_sb());
+            return IASP_CMD_OK;
         }
     }
 
     /* get message code */
     if(!iasp_decode_varint(payload, &msg_code)) {
+        debug_log("Cannot get message code.\n");
         return IASP_CMD_INVALID_MSG;
     }
 
@@ -444,13 +495,6 @@ static iasp_result_t iasp_handle_message(const iasp_proto_ctx_t * const pctx, st
     }
 
 
-    /* check message type for user data */
-    if(pctx->msg_type == IASP_MSG_USER) {
-        if(userdata_cb) {
-            userdata_cb(s, iasp_proto_get_payload_sb());
-            return IASP_CMD_OK;
-        }
-    }
 
     /* reset decode space */
     iasp_reset_message();
