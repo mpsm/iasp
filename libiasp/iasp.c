@@ -1896,6 +1896,9 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
 
             /* get key */
             key = &s->sides[s->side].key;
+            debug_log("Using key: ");
+            debug_print_key(key);
+            debug_newline();
 
             /* do actual encryption */
             if(!crypto_encrypt(s->spn, &bbp, &bbaad, &bbiv, key->keydata, &bbp)) {
@@ -1952,6 +1955,10 @@ static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * con
 
         p.buf = payload->data;
         p.size = payload->size;
+
+        debug_log("Using key for decrypt: ");
+        debug_print_key(&s->sides[peer_side].key);
+        debug_newline();
 
         /* decrypt and remove tag */
         if(!crypto_decrypt(s->spn, &p, &bbaad, &bbiv, s->sides[peer_side].key.keydata, &p)) {

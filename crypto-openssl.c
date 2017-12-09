@@ -1115,7 +1115,7 @@ bool crypto_decrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * co
 
     /* set AAD data */
     if(a != NULL && a->buf != NULL && a->size > 0) {
-        if(EVP_EncryptUpdate(ctx, NULL, &outl, a->buf, a->size) != 1) {
+        if(EVP_DecryptUpdate(ctx, NULL, &outl, a->buf, a->size) != 1) {
             return false;
         }
     }
