@@ -1017,6 +1017,19 @@ bool crypto_encrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * co
     EVP_CIPHER_CTX *ctx;
     int outl;
 
+    debug_log("Encrypt data: \n");
+    debug_print_spn(spn);
+    debug_newline();
+    debug_log("P: ");
+    debug_print_binary(p->buf, p->size);
+    debug_newline();
+    debug_log("A: ");
+    debug_print_binary(a->buf, a->size);
+    debug_newline();
+    debug_log("N: ");
+    debug_print_binary(n->buf, n->size);
+    debug_newline();
+
     /* context init */
     if(!(ctx = EVP_CIPHER_CTX_new())) {
         return false;
@@ -1070,6 +1083,10 @@ bool crypto_encrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * co
     }
     c->size += IASP_CRYPTO_TAG_LENGTH;
 
+    debug_log("C: ");
+    debug_print_binary(c->buf, c->size);
+    debug_newline();
+
     /* Clean up */
     EVP_CIPHER_CTX_free(ctx);
 
@@ -1082,6 +1099,19 @@ bool crypto_decrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * co
 {
     EVP_CIPHER_CTX *ctx;
     int outl;
+
+    debug_log("Decrypt data: \n");
+    debug_print_spn(spn);
+    debug_newline();
+    debug_log("C: ");
+    debug_print_binary(c->buf, c->size);
+    debug_newline();
+    debug_log("A: ");
+    debug_print_binary(a->buf, a->size);
+    debug_newline();
+    debug_log("N: ");
+    debug_print_binary(n->buf, n->size);
+    debug_newline();
 
     /* init context */
     if(!(ctx = EVP_CIPHER_CTX_new())) {
@@ -1125,6 +1155,10 @@ bool crypto_decrypt(iasp_spn_code_t spn, binbuf_t * const p, const binbuf_t * co
         return false;
     }
     p->size = outl;
+
+    debug_log("P: ");
+    debug_print_binary(p->buf, p->size);
+    debug_newline();
 
     /* Clean up */
     EVP_CIPHER_CTX_free(ctx);
