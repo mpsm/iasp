@@ -397,11 +397,6 @@ static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambu
 
         debug_log("Found session for decryption: %p\n", s);
 
-        /* check msg type */
-        if(pctx->msg_type != IASP_MSG_USER && pctx->msg_type != IASP_MSG_MGMT) {
-            return IASP_CMD_INVALID_MSG;
-        }
-
         /* copy crucial data */
         s->pctx.input_seq = pctx->input_seq;
         s->pctx.input_spi = pctx->input_spi;
