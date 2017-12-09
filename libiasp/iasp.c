@@ -1865,6 +1865,15 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
 
     /* set encrypt flag and encrypt if needed */
     s->pctx.encrypted = encrypted;
+
+    /* set outgoing spi */
+    s->pctx.output_spi = s->sides[s->side].spi;
+
+    /* set headers */
+    if(!iasp_proto_set_headers(&s->pctx)) {
+        goto error;
+    }
+
     if(encrypted) {
         binbuf_t bbaad, bbiv;
 
@@ -1882,17 +1891,15 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
         /* prepare IV data */
         iasp_session_get_iv(s, &bbiv, true);
 
-        /* set outgoing spi */
-        s->pctx.output_spi = s->sides[s->side].spi;
-
         /* encrypt */
         {
             binbuf_t bbp;
             iasp_key_t *key;
 
             /* setup plaintext bb */
-            bbp.buf = payload->data;
-            bbp.size = payload->size;
+            /* TODO: hack, refactor */
+            bbp.buf = payload->data - 1;
+            bbp.size = payload->size + 1;
 
             /* get key */
             key = &s->sides[s->side].key;
@@ -1916,7 +1923,7 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
     }
 
     result = true;
-error:
+
     /* fix sequence */
     if(encrypted) {
         /* increment sequence */
@@ -1926,6 +1933,7 @@ error:
             s->pctx.output_seq += 1;
         }
     }
+error:
 
     return result;
 }

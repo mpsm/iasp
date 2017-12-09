@@ -62,11 +62,10 @@ void iasp_proto_put_inner_hdr(uint8_t *buf, iasp_msg_type_t msg_type, bool answe
 }
 
 
-bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
+bool iasp_proto_set_headers(iasp_proto_ctx_t * const this)
 {
     uint8_t oh, ih;
     uint8_t pn = this->pn;
-    binbuf_t bb;
 
     assert(this != NULL);
 
@@ -88,6 +87,16 @@ bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
         return false;
     }
 
+    return true;
+}
+
+
+bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
+{
+    binbuf_t bb;
+
+    assert(this != NULL);
+
     /* prepare descriptor */
     bb.buf = packet_sb.data;
     bb.size = packet_sb.size;
@@ -105,8 +114,6 @@ bool iasp_proto_send(iasp_proto_ctx_t * const this, streambuf_t * const payload)
     if(!iasp_network_send(&this->addr, &this->peer, &bb)) {
         return false;
     }
-
-    this->pn = pn;
 
     return true;
 }
