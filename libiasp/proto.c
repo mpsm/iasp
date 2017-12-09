@@ -170,7 +170,7 @@ bool iasp_proto_get_inner_header(iasp_proto_ctx_t * const pctx)
     iasp_inner_hdr_t ih;
 
     /* read inner header */
-    if(!streambuf_read(&packet_sb, &ih.byte, sizeof(ih))) {
+    if(!streambuf_read(&payload_sb, &ih.byte, sizeof(ih))) {
         return false;
     }
     pctx->msg_type = ih.bits.mt;

@@ -494,8 +494,6 @@ static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambu
         }
     }
 
-
-
     /* reset decode space */
     iasp_reset_message();
 
