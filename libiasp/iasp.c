@@ -678,12 +678,13 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
         msg.hmsg_init_auth.has_dhkey = true;
         crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.dhkey, &ffd->ecdhe_ctx);
 
-        if(!iasp_peer_is_trusted(&r->id)) {
+        /* if there is no pkey for peer, ask for it */
+        if(iasp_peer_get_pkey(&r->id) == NULL) {
             i->flags.bits.send_hint = true;
         }
     }
     else {
-        if(!iasp_peer_is_trusted(&r->id)) {
+        if(!iasp_peer_is_privileged(&r->id)) {
             i->flags.bits.oob_auth = true;
             i->flags.bits.send_pkey = true;
         }
