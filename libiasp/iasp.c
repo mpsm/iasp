@@ -516,6 +516,17 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* mark session side */
     s->side = SESSION_SIDE_RESPONDER;
 
+    /* check blacklist */
+    for(j = 0; j < msg.hmsg_init_hello.ids.id_count; ++j) {
+        if(!iasp_peer_is_trusted(&msg.hmsg_init_hello.ids.id[j])) {
+            debug_log("Peer is blacklisted!\n");
+            debug_log("Blacklisted ID: ");
+            debug_print_id(&msg.hmsg_init_hello.ids.id[j]);
+            debug_newline();
+            return IASP_CMD_ERROR;
+        }
+    }
+
     /* choose spn */
     s->spn = security_choose_spn(&msg.hmsg_init_hello.ids);
     if(s->spn == IASP_SPN_NONE) {
@@ -562,8 +573,8 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
     if(iasp_role != IASP_ROLE_CD) {
-        /* set session flags */
-        if(!iasp_peer_is_trusted(&i->id)) {
+        /* if there is no pkey for peer, ask for it */
+        if(iasp_peer_get_pkey(&i->id) == NULL) {
             r->flags.bits.send_hint = true;
         }
 
@@ -620,6 +631,15 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     /* get sides */
     i = &s->sides[SESSION_SIDE_INITIATOR];
     r = &s->sides[SESSION_SIDE_RESPONDER];
+
+    /* check peer ID */
+    if(!iasp_peer_is_trusted(&msg.hmsg_resp_hello.id)) {
+        debug_log("Peer is blacklisted!\n");
+        debug_log("Blacklisted ID: ");
+        debug_print_id(&msg.hmsg_resp_hello.id);
+        debug_newline();
+        return IASP_CMD_ERROR;
+    }
 
     /* check my nonce */
     if(memcmp(&i->nonce, &msg.hmsg_resp_hello, sizeof(iasp_nonce_t)) != 0) {
