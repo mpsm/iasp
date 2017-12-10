@@ -103,7 +103,7 @@ static const crypto_context_t *crypto_get_context(iasp_spn_code_t spn)
 }
 
 
-bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id)
+bool crypto_get_pkey_id(const iasp_pkey_t * const pkey, iasp_identity_t * const id)
 {
     EVP_PKEY evp_pkey;
     EC_KEY *eckey;

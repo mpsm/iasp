@@ -53,7 +53,7 @@ bool crypto_ecdhe_compute_secret(const iasp_pkey_t * const pkey, const crypto_ec
 bool crypto_ecdhe_pkey(const crypto_ecdhe_context_t *ecdhe_ctx, iasp_pkey_t * const pkey);
 
 /* ID generation */
-bool crypto_get_pkey_id(iasp_pkey_t * const pkey, iasp_identity_t * const id);
+bool crypto_get_pkey_id(const iasp_pkey_t * const pkey, iasp_identity_t * const id);
 
 
 #endif

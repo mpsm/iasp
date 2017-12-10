@@ -100,7 +100,7 @@ bool iasp_peer_add_pkey(const iasp_pkey_t * const pkey)
     iasp_identity_t peer_id;
 
     /* calculate id for provided pkey */
-    crypto_get_id(pkey->spn, &peer_id);
+    crypto_get_pkey_id(pkey, &peer_id);
 
     /* get peer data, create if not found */
     pd = iasp_peer_by_id(&peer_id);
