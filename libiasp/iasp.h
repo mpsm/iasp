@@ -83,7 +83,7 @@ typedef struct _iasp_session_t {
 
 /* event handler type */
 typedef void (*iasp_session_cb_t)(iasp_session_t * const s, iasp_event_t e);
-typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, streambuf_t * const sb);
+typedef void (*iasp_session_userdata_cb_t)(iasp_session_t * const s, binbuf_t * const sb);
 
 
 /* init IASP */
@@ -101,7 +101,7 @@ void iasp_session_set_cb(iasp_session_cb_t cb);
 void iasp_session_set_userdata_cb(iasp_session_userdata_cb_t cb);
 
 /* session commands */
-const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
+iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer);
 iasp_result_t iasp_session_handle_addr(iasp_address_t * const addr);
 iasp_result_t iasp_session_handle_any(void);
 bool iasp_session_send_userdata(iasp_session_t *s, const uint8_t *data, const size_t datasize);

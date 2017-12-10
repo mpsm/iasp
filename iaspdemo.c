@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <time.h>
 
 #include "libiasp/iasp.h"
 #include "libiasp/debug.h"
@@ -87,10 +88,11 @@ static bool add_key(const char *filename);
 static bool read_file(const char *filename, binbuf_t *bb);
 static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
 static bool event_wait(const iasp_session_t * const s, iasp_event_t e, int retries);
+static void send_random_data(iasp_session_t * const s);
 
 /* default event handler */
 static void event_handler(iasp_session_t * const s, iasp_event_t e);
-static void userdata_handler(iasp_session_t * const s, streambuf_t * data);
+static void userdata_handler(iasp_session_t * const s, binbuf_t * data);
 
 /* signal handler */
 void signal_handler(int signum);
@@ -125,6 +127,9 @@ int main(int argc, char *argv[])
         newsigaction.sa_handler = signal_handler;
         sigaction(SIGINT, &newsigaction, NULL);
     }
+
+    /* init random source */
+    srand(time(0));
 
     /* set peer port */
     peer_port = IASP_DEFAULT_PORT;
@@ -455,6 +460,7 @@ static int main_cd(const modecontext_t *ctx)
     iasp_address_t tpaddr = {NULL};
     int ret = ERROR_RUNTIME;
     iasp_identity_t tpid;
+    iasp_session_t *tpses, *peerses;
 
     printf("\nExecuting CD mode.\n\n");
 
@@ -489,8 +495,6 @@ static int main_cd(const modecontext_t *ctx)
     }
 
     {
-        const iasp_session_t *tpses, *peerses;
-        
         /* set TP session */
         tpses = iasp_session_start(ctx->address, &tpaddr);
         if(!event_wait(tpses, IASP_EVENT_ESTABLISHED, 3)) {
@@ -516,10 +520,13 @@ static int main_cd(const modecontext_t *ctx)
     {
         /* process incoming messages */
         for(;;) {
-            iasp_session_handle_any();
+            if(iasp_session_handle_any() == IASP_CMD_TIMEOUT) {
+                send_random_data(tpses);
+            }
             if(exitflag) {
                 break;
             }
+
         }
     }
 
@@ -664,7 +671,7 @@ static void event_handler(iasp_session_t * const s, iasp_event_t e)
             debug_newline();
             debug_print_session(s);
             debug_newline();
-            iasp_session_send_userdata(s, (const uint8_t *)"test", 4);
+            iasp_session_send_userdata(s, (const uint8_t *)"hello", 5);
             break;
 
         case IASP_EVENT_TERMINATED:
@@ -735,11 +742,37 @@ bool security_use_hint(const iasp_hint_t * const hint)
 }
 
 
-static void userdata_handler(iasp_session_t * const s, streambuf_t * data)
+static void userdata_handler(iasp_session_t * const s, binbuf_t * data)
 {
     debug_log("User data received for session: %p.\n", s);
-    debug_print_binary(data->data, data->size);
+    debug_print_binary(data->buf, data->size);
     debug_newline();
+}
+
+
+#define MAX_RANDOM_DATA_SIZE (64)
+static void send_random_data(iasp_session_t * const s)
+{
+    int bsize = rand() % MAX_RANDOM_DATA_SIZE + 1;
+    uint8_t *buf;
+    unsigned int i;
+
+    if(bsize <= 0) {
+        return;
+    }
+
+    buf = malloc(bsize);
+    for(i = 0; i < bsize; ++i) {
+        buf[i] = (uint8_t)(rand() & 0xFF);
+    }
+
+    debug_log("Sending random data ");
+    debug_print_binary(buf, (size_t)bsize);
+    debug_newline();
+
+    iasp_session_send_userdata(s, buf, bsize);
+
+    free(buf);
 }
 
 

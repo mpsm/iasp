@@ -293,7 +293,7 @@ static iasp_session_t * iasp_get_session_by_spi(const iasp_spi_t * const spi)
 }
 
 
-const iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
+iasp_session_t * iasp_session_start(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     streambuf_t *sb;
     iasp_session_t *s;
@@ -444,7 +444,12 @@ static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambu
     /* check message type for user data */
     if(pctx->msg_type == IASP_MSG_USER) {
         if(userdata_cb) {
-            userdata_cb(s, iasp_proto_get_payload_sb());
+            binbuf_t bb;
+
+            bb.buf = payload->data + payload->read_index;
+            bb.size = payload->size - payload->read_index;
+
+            userdata_cb(s, &bb);
             return IASP_CMD_OK;
         }
     }
@@ -1903,9 +1908,11 @@ static bool iasp_session_send_msg(iasp_session_t * const s, streambuf_t * payloa
 
             /* get key */
             key = &s->sides[s->side].key;
+#if IASP_DEBUG >= 2
             debug_log("Using key: ");
             debug_print_key(key);
             debug_newline();
+#endif
 
             /* do actual encryption */
             if(!crypto_encrypt(s->spn, &bbp, &bbaad, &bbiv, key->keydata, &bbp)) {
@@ -1964,9 +1971,11 @@ static bool iasp_session_decrypt_msg(iasp_session_t * const s, streambuf_t * con
         p.buf = payload->data;
         p.size = payload->size;
 
+#if IASP_DEBUG >= 2
         debug_log("Using key for decrypt: ");
         debug_print_key(&s->sides[peer_side].key);
         debug_newline();
+#endif
 
         /* decrypt and remove tag */
         if(!crypto_decrypt(s->spn, &p, &bbaad, &bbiv, s->sides[peer_side].key.keydata, &p)) {
