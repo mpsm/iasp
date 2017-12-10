@@ -89,6 +89,7 @@ static bool read_file(const char *filename, binbuf_t *bb);
 static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_identity_t *id);
 static bool event_wait(const iasp_session_t * const s, iasp_event_t e, int retries);
 static void send_random_data(iasp_session_t * const s);
+static bool read_id_from_config(const config_t * const cfg, const char *option, iasp_identity_t * const id);
 
 /* default event handler */
 static void event_handler(iasp_session_t * const s, iasp_event_t e);
@@ -265,6 +266,20 @@ int main(int argc, char *argv[])
         }
     }
 
+    /* read IDS data */
+    {
+        iasp_identity_t blacklisted;
+
+        if(read_id_from_config(&cfg, "ids.blacklist", &blacklisted)) {
+            debug_log("Blacklisting peer with ID: ");
+            debug_print_id(&blacklisted);
+            debug_newline();
+
+            iasp_peer_add(&blacklisted);
+            iasp_peer_blacklist(&blacklisted);
+        }
+    }
+
     /* read OOB key */
     oob.buf = NULL;
     oob.size = 0;
@@ -419,13 +434,13 @@ static bool read_public_key(const char * filename, iasp_pkey_t *pkey, iasp_ident
 }
 
 
-static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
+static bool read_id_from_config(const config_t * const cfg, const char *option, iasp_identity_t * const id)
 {
     const config_setting_t *tpid;
     uint64_t id64;
     uint32_t id32[2];
 
-    tpid = config_lookup(cfg, "cd.trusted_tp");
+    tpid = config_lookup(cfg, option);
     if(tpid == NULL) {
         return false;
     }
@@ -437,6 +452,9 @@ static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
 
     /* get SPN */
     id->spn = config_setting_get_int_elem(tpid, 0);
+    if(id->spn >= IASP_SPN_MAX || id->spn == IASP_SPN_NONE) {
+        fprintf(stderr, "Invalid %s setting: invalid spn value %d.\n", option, id->spn);
+    }
 
     /* get ID data */
     id64 = config_setting_get_int64_elem(tpid, 1);
@@ -446,13 +464,12 @@ static bool cd_get_tpid(const config_t * const cfg, iasp_identity_t * const id)
     goto ok;
 
 invalid_setting:
-    fprintf(stderr, "Invalid trusted_tp setting.\n");
+
     return false;
 
 ok:
     return true;
 }
-
 
 
 static int main_cd(const modecontext_t *ctx)
@@ -486,7 +503,7 @@ static int main_cd(const modecontext_t *ctx)
 
     /* set trusted TP */
     {
-        if(cd_get_tpid(ctx->cfg, &tpid)) {
+        if(read_id_from_config(ctx->cfg, "cd.trusted_tp", &tpid)) {
             debug_log("Setting trusted TP ID: ");
             debug_print_id(&tpid);
             debug_newline();
