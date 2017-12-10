@@ -35,7 +35,11 @@ static iasp_session_t sessions[IASP_CONFIG_MAX_SESSIONS];
 
 /* rx/tx message structure */
 static iasp_msg_storage_t msg;
-static iasp_role_t role;
+
+/* iasp configuration data */
+static iasp_role_t iasp_role;
+static binbuf_t iasp_hint;
+static const iasp_address_t *tpaddr;
 
 /* private methods */
 static void iasp_reset_message(void);
@@ -128,17 +132,11 @@ static const session_handler_lookup_t tp_session_handlers[] =
 };
 
 
-/* iasp configuration data */
-static iasp_role_t iasp_role;
-static binbuf_t iasp_hint;
-static const iasp_address_t *tpaddr;
-
-
-void iasp_init(iasp_role_t iasp_role, uint8_t *buf, size_t bufsize)
+void iasp_init(iasp_role_t role, uint8_t *buf, size_t bufsize)
 {
     crypto_init();
     iasp_proto_init(buf, bufsize);
-    role = iasp_role;
+    iasp_role = role;
     iasp_sessions_reset();
     memset(&iasp_hint, 0, sizeof(binbuf_t));
 }
@@ -174,7 +172,6 @@ static bool iasp_copy_hint(iasp_hint_t *h)
 }
 
 
-
 void iasp_set_tpaddr(const iasp_address_t *const _tpaddr)
 {
     tpaddr = _tpaddr;
@@ -207,13 +204,6 @@ static void iasp_sessions_reset()
 }
 
 
-void iasp_session_set_role(iasp_role_t r)
-{
-    assert(role < IASP_ROLE_MAX);
-    role = r;
-}
-
-
 static iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_address_t *peer)
 {
     unsigned int i;
@@ -222,7 +212,7 @@ static iasp_session_t *iasp_session_new(const iasp_address_t *addr, const iasp_a
         if(sessions[i].active == false) {
             iasp_session_t *s = &sessions[i];
 
-            iasp_session_init(s, role, addr, peer);
+            iasp_session_init(s, iasp_role, addr, peer);
             debug_log("Created new session: %p\n", s);
             return s;
         }
@@ -467,7 +457,7 @@ static iasp_result_t iasp_handle_message(iasp_proto_ctx_t * const pctx, streambu
 
     /* find handler */
     lookup_code = MSG_CODE(pctx->msg_type, msg_code);
-    lookup = handlers[role];
+    lookup = handlers[iasp_role];
     while(lookup->msg != 0) {
         if(lookup->msg == lookup_code) {
             break;
@@ -549,7 +539,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     memcpy(&i->nonce, &msg.hmsg_init_auth.inonce, sizeof(iasp_nonce_t));
 
     /* save peer's IDs for child session negotiation */
-    if(role == IASP_ROLE_TP) {
+    if(iasp_role == IASP_ROLE_TP) {
         iasp_tpdata_set_ids(s->aux, &msg.hmsg_init_hello.ids);
     }
 
@@ -561,7 +551,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 
     /* set and save own ID */
     {
-        iasp_identity_t *myid = role == IASP_ROLE_CD ? &msg.hmsg_redirect.id : &msg.hmsg_resp_hello.id;
+        iasp_identity_t *myid = iasp_role == IASP_ROLE_CD ? &msg.hmsg_redirect.id : &msg.hmsg_resp_hello.id;
         crypto_get_id(s->spn, myid);
         memcpy(&r->id, myid, sizeof(iasp_identity_t));
     }
@@ -571,7 +561,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
 
     /* ================ ROLE DEPEND =================== */
     r->flags.byte = 0;
-    if(role != IASP_ROLE_CD) {
+    if(iasp_role != IASP_ROLE_CD) {
         /* set session flags */
         if(!iasp_peer_is_trusted(&i->id)) {
             r->flags.bits.send_hint = true;
@@ -661,7 +651,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
     /* ================ ROLE DEPEND =================== */
     i->flags.byte = 0;
-    if(role != IASP_ROLE_CD) {
+    if(iasp_role != IASP_ROLE_CD) {
         iasp_ffddata_t *ffd = (iasp_ffddata_t *)s->aux;
 
         /* set ephemeral key */
@@ -1243,7 +1233,7 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
     memcpy(r->spi.spidata, r->nonce.data + 2, sizeof(iasp_spi_t));
 
     /* get ephemeral key if possible */
-    if(role != IASP_ROLE_CD) {
+    if(iasp_role != IASP_ROLE_CD) {
         iasp_tpdata_t *tpd = s->aux;
         ecdhe_ctx = &tpd->ffd.ecdhe_ctx;
     }
@@ -1487,7 +1477,7 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     streambuf_t *keyinstall;
 
     /* assert TP role */
-    assert(role == IASP_ROLE_TP);
+    assert(iasp_role == IASP_ROLE_TP);
 
     /* decode message */
     if(!iasp_decode_mgmt_req_session(sb, &msg.mgmt_req)) {
@@ -1701,7 +1691,7 @@ static bool iasp_handler_mgmt_spi(iasp_session_t * const s, streambuf_t * const 
     tp_child_session_t *child;
     iasp_session_t *session_initiator;
 
-    assert(role == IASP_ROLE_TP);
+    assert(iasp_role == IASP_ROLE_TP);
 
     if(!iasp_decode_mgmt_spi(sb, &msg.mgmt_spi)) {
         debug_log("Cannot decode SPI message.\n");
