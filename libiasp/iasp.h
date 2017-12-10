@@ -11,12 +11,12 @@
 #include "field.h"
 #include "message.h"
 #include "network.h"
+#include "peer.h"
 #include "proto.h"
 #include "security.h"
 #include "spn.h"
 #include "streambuf.h"
 #include "tp.h"
-#include "trust.h"
 #include "types.h"
 
 

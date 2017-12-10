@@ -155,7 +155,7 @@ bool pki_load_cert(const char *filepath)
     debug_log("Certificate is valid!\n");
 
     /* add pkey to database */
-    security_add_pkey(&new->pkey, false);
+    iasp_peer_add_pkey(&new->pkey);
 
     /* link structure */
     new->next = NULL;

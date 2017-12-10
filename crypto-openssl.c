@@ -663,7 +663,7 @@ bool crypto_verify_init(const iasp_identity_t * const id, iasp_sigtype_t sigtype
             EVP_PKEY_set_type(&sign_pkey, EVP_PKEY_EC);
 
             /* find public key */
-            pkeybin = security_get_pkey_by_id(id);
+            pkeybin = iasp_peer_get_pkey(id);
             if(pkeybin == NULL) {
                 return false;
             }

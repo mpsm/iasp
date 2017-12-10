@@ -8,8 +8,8 @@
 #include "tp.h"
 #include "ffd.h"
 #include "debug.h"
-#include "trust.h"
 #include "address.h"
+#include "peer.h"
 
 #include <arpa/inet.h>
 #include <assert.h>
@@ -573,7 +573,7 @@ static bool iasp_handler_init_hello(iasp_session_t * const s, streambuf_t *sb)
     r->flags.byte = 0;
     if(role != IASP_ROLE_CD) {
         /* set session flags */
-        if(!iasp_trust_is_trusted_peer(&i->id)) {
+        if(!iasp_peer_is_trusted(&i->id)) {
             r->flags.bits.send_hint = true;
         }
 
@@ -668,12 +668,12 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
         msg.hmsg_init_auth.has_dhkey = true;
         crypto_ecdhe_genkey(s->spn, &msg.hmsg_init_auth.dhkey, &ffd->ecdhe_ctx);
 
-        if(!iasp_trust_is_trusted_peer(&r->id)) {
+        if(!iasp_peer_is_trusted(&r->id)) {
             i->flags.bits.send_hint = true;
         }
     }
     else {
-        if(!iasp_trust_is_trusted_tp(&r->id)) {
+        if(!iasp_peer_is_trusted(&r->id)) {
             i->flags.bits.oob_auth = true;
             i->flags.bits.send_pkey = true;
         }
@@ -836,12 +836,23 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
         }
 
         debug_log("PKEY received.\n");
-        security_add_pkey_dup(&msg.hmsg_init_auth.pkey, false);
+
+        /* dup pkey and add to peer store */
+        {
+            iasp_pkey_t *new_pkey;
+
+            new_pkey = malloc(sizeof(iasp_pkey_t));
+            if(new_pkey == NULL) {
+                return IASP_CMD_NOMEM;
+            }
+            memcpy(new_pkey, &msg.hmsg_init_auth.pkey, sizeof(iasp_pkey_t));
+            iasp_peer_add_pkey(new_pkey);
+        }
     }
 
     /* it should be possible to check peer's public key by now */
     {
-        const iasp_pkey_t *peer_pkey = security_get_pkey_by_id(&i->id);
+        const iasp_pkey_t *peer_pkey = iasp_peer_get_pkey(&i->id);
 
         /* get peer's public key */
         if(peer_pkey == NULL) {
@@ -918,7 +929,7 @@ static bool iasp_handler_init_auth(iasp_session_t * const s, streambuf_t * const
     /* choose key for ECDHE */
     if(!msg.hmsg_init_auth.has_dhkey) {
         /* find pkey by peer key id */
-        pkey = security_get_pkey_by_id(&i->id);
+        pkey = iasp_peer_get_pkey(&i->id);
         if(pkey == NULL) {
             return false;
         }
@@ -1120,12 +1131,23 @@ static bool iasp_handler_resp_auth(iasp_session_t * const s, streambuf_t * const
         }
 
         debug_log("PKEY received.\n");
-        security_add_pkey_dup(&msg.hmsg_resp_auth.pkey, false);
+
+        /* dup pkey and add to peer store */
+        {
+            iasp_pkey_t *new_pkey;
+
+            new_pkey = malloc(sizeof(iasp_pkey_t));
+            if(new_pkey == NULL) {
+                return IASP_CMD_NOMEM;
+            }
+            memcpy(new_pkey, &msg.hmsg_resp_auth.pkey, sizeof(iasp_pkey_t));
+            iasp_peer_add_pkey(new_pkey);
+        }
     }
 
     /* it should be possible to check peer's public key by now */
     {
-        const iasp_pkey_t *peer_pkey = security_get_pkey_by_id(&r->id);
+        const iasp_pkey_t *peer_pkey = iasp_peer_get_pkey(&r->id);
 
         /* get peer's public key */
         if(peer_pkey == NULL) {

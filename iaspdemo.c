@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
                 }
 
                 /* set public keys data */
-                security_add_pkey(&public_keys.keys[i].pubkey, false);
+                iasp_peer_add_pkey(&public_keys.keys[i].pubkey);
             }
         }
         else {
@@ -490,7 +490,8 @@ static int main_cd(const modecontext_t *ctx)
             debug_log("Setting trusted TP ID: ");
             debug_print_id(&tpid);
             debug_newline();
-            iasp_trust_set_tp(&tpid);
+            iasp_peer_add(&tpid);
+            iasp_peer_privilege(&tpid);
         }
     }
 
