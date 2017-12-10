@@ -161,7 +161,7 @@ bool iasp_peer_is_trusted(const iasp_identity_t * const id)
 
     pd = iasp_peer_by_id(id);
 
-    return pd == NULL ? false : !pd->blacklist;
+    return pd == NULL ? true : !pd->blacklist;
 }
 
 
