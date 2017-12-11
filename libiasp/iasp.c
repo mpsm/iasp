@@ -694,6 +694,8 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
     else {
         if(!iasp_peer_is_privileged(&r->id)) {
             i->flags.bits.oob_auth = true;
+        }
+        if(iasp_peer_get_pkey(&r->id) == NULL) {
             i->flags.bits.send_pkey = true;
         }
     }
