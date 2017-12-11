@@ -1,6 +1,7 @@
 #include "peer.h"
 #include "types.h"
 #include "crypto.h"
+#include "debug.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -90,6 +91,10 @@ bool iasp_peer_add(const iasp_identity_t * const id)
         tail = pd;
     }
 
+    debug_log("Added peer to store: ");
+    debug_print_id(id);
+    debug_newline();
+
     return true;
 }
 
@@ -114,6 +119,10 @@ bool iasp_peer_add_pkey(const iasp_pkey_t * const pkey)
         return false;
     }
     pd->pkey = pkey;
+
+    debug_log("Adding pkey to peer: ");
+    debug_print_id(&pd->id);
+    debug_newline();
 
     return true;
 }
@@ -168,6 +177,10 @@ bool iasp_peer_is_trusted(const iasp_identity_t * const id)
 const iasp_pkey_t * iasp_peer_get_pkey(const iasp_identity_t * const id)
 {
     iasp_peer_data_t *pd;
+
+    debug_log("Looking for pkey, peer id: ");
+    debug_print_id(id);
+    debug_newline();
 
     pd = iasp_peer_by_id(id);
     if(pd == NULL) {
