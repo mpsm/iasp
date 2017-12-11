@@ -633,6 +633,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
     /* decode message */
     if(!iasp_decode_hmsg_resp_hello(sb, &msg.hmsg_resp_hello)) {
+        debug_log("Cannot decode resp hello message.\n");
         return false;
     }
 
@@ -660,6 +661,7 @@ static bool iasp_handler_resp_hello(iasp_session_t * const s, streambuf_t * cons
 
     /* get my ID */
     if(!crypto_get_id(s->spn, &i->id)) {
+        debug_log("Cannot get my ID.\n");
         return false;
     }
 
