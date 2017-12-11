@@ -244,6 +244,14 @@ static void iasp_session_init(iasp_session_t * const this, iasp_role_t srole, co
             break;
         }
 
+        case IASP_ROLE_FFD:
+        {
+            iasp_ffddata_t *ffddata = malloc(sizeof(iasp_ffddata_t));
+            memset(ffddata, 0, sizeof(iasp_ffddata_t));
+            this->aux = ffddata;
+            break;
+        }
+
         default:
             break;
     }
