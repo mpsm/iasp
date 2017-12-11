@@ -261,9 +261,11 @@ int main(int argc, char *argv[])
                 iasp_peer_add_pkey(&public_keys.keys[i].pubkey);
             }
         }
+#if IASP_DEBUG >= 2
         else {
             fprintf(stderr, "Crypto: warning - no public keys specified.\n");
         }
+#endif
     }
 
     /* read IDS data */
@@ -308,6 +310,54 @@ int main(int argc, char *argv[])
         }
         else {
             debug_log("No hint found.\n");
+        }
+    }
+
+    /* init PKI for TPs & FFDs */
+    if(role == IASP_ROLE_FFD || role == IASP_ROLE_TP)
+    {
+        pki_init();
+
+        {
+            const char *cafile;
+
+            if(config_lookup_string(&cfg, "crypto.cafile", &cafile) == CONFIG_FALSE) {
+                fprintf(stderr, "TP: specify cacert.pem in configuration.\n");
+                return ERROR_CONFIG;
+            }
+            debug_log("Adding CA file: %s.\n", cafile);
+            if(!pki_lookup(cafile, NULL)) {
+                return ERROR_CONFIG;
+            }
+        }
+
+        {
+            const char *crlfile;
+
+            if(config_lookup_string(&cfg, "crypto.crlfile", &crlfile) == CONFIG_TRUE) {
+                debug_log("Adding CRL flle: %s.\n", crlfile);
+                if(!pki_crl(crlfile)) {
+                    debug_log("Cannot add CRL file.\n");
+                }
+            }
+        }
+
+        {
+            const config_setting_t *certs;
+            unsigned int i;
+
+            if((certs = config_lookup(&cfg, "crypto.certs")) != NULL) {
+                size_t count = config_setting_length(certs);
+                for(i = 0; i < count; ++i) {
+                    const char *cert;
+
+                    cert = config_setting_get_string_elem(certs, i);
+                    debug_log("Adding certificate to store: %s.\n", cert);
+                    if(!pki_load_cert(cert)) {
+                        debug_log("Failed to add certificate.\n");
+                    }
+                }
+            }
         }
     }
 
@@ -539,7 +589,9 @@ static int main_cd(const modecontext_t *ctx)
         /* process incoming messages */
         for(;;) {
             if(iasp_session_handle_any() == IASP_CMD_TIMEOUT) {
-                send_random_data(tpses);
+                if(peerses != NULL && peerses->established) {
+                    send_random_data(peerses);
+                }
             }
             if(exitflag) {
                 break;
@@ -559,45 +611,45 @@ exit:
 
 static int main_ffd(const modecontext_t *ctx)
 {
-    iasp_address_t tpaddr = {NULL};
+    //iasp_address_t tpaddr = {NULL};
     int ret = ERROR_RUNTIME;
+    iasp_session_t *peerses = NULL;
 
     printf("\nExecuting FFD mode.\n\n");
 
-    /* get TP address from config */
     {
-        const char *tpaddress_str;
+        /* set peer session */
+        if(ctx->peer_address != NULL) {
+            peerses = iasp_session_start(ctx->address, ctx->peer_address);
+            if(peerses == NULL) {
+                debug_log("Could not create peer session.\n");
+                goto exit;
+            }
 
-        if(config_lookup_string(ctx->cfg, "ffd.tpaddress", &tpaddress_str) == CONFIG_FALSE) {
-            fprintf(stderr, "FFD: specify TP address in configuration");
-            ret = ERROR_CONFIG;
-            goto exit;
+            if(!event_wait(peerses, IASP_EVENT_ESTABLISHED, 5)) {
+                debug_log("Could not establish peer session.\n");
+                goto exit;
+            }
         }
-
-        if(!network_posix_address_init_str(&tpaddr, tpaddress_str, IASP_DEFAULT_PORT)) {
-            fprintf(stderr, "FFD: invalid TP address %s", tpaddress_str);
-            ret = ERROR_CONFIG;
-            goto exit;
-        }
-
-        debug_log("FFD: Trust Point address: %s\n", tpaddress_str);
     }
 
     {
-        const iasp_session_t *tpses;
-        
-        tpses = iasp_session_start(ctx->address, &tpaddr);
-        if(!event_wait(tpses, IASP_EVENT_ESTABLISHED, 3)) {
-            debug_log("Could not establish TP session.\n");
-            goto exit;
+        /* process incoming messages */
+        for(;;) {
+            if(iasp_session_handle_any() == IASP_CMD_TIMEOUT) {
+                if(peerses != NULL && peerses->established) {
+                    send_random_data(peerses);
+                }
+            }
+            if(exitflag) {
+                break;
+            }
+
         }
     }
 
     ret = ERROR_OK;
-
 exit:
-    iasp_network_address_destroy(&tpaddr);
-
     return ret;
 }
 
@@ -605,50 +657,6 @@ exit:
 static int main_tp(const modecontext_t *ctx)
 {
     printf("Executing TP mode.\n");
-
-    pki_init();
-
-    {
-        const char *cafile;
-
-        if(config_lookup_string(ctx->cfg, "crypto.cafile", &cafile) == CONFIG_FALSE) {
-            fprintf(stderr, "TP: specify cacert.pem in configuration.\n");
-            return ERROR_CONFIG;
-        }
-        debug_log("Adding CA file: %s.\n", cafile);
-        if(!pki_lookup(cafile, NULL)) {
-            return ERROR_CONFIG;
-        }
-    }
-
-    {
-        const char *crlfile;
-
-        if(config_lookup_string(ctx->cfg, "crypto.crlfile", &crlfile) == CONFIG_TRUE) {
-            debug_log("Adding CRL flle: %s.\n", crlfile);
-            if(!pki_crl(crlfile)) {
-                debug_log("Cannot add CRL file.\n");
-            }
-        }
-    }
-
-    {
-        const config_setting_t *certs;
-        unsigned int i;
-
-        if((certs = config_lookup(ctx->cfg, "crypto.certs")) != NULL) {
-            size_t count = config_setting_length(certs);
-            for(i = 0; i < count; ++i) {
-                const char *cert;
-
-                cert = config_setting_get_string_elem(certs, i);
-                debug_log("Adding certificate to store: %s.\n", cert);
-                if(!pki_load_cert(cert)) {
-                    debug_log("Failed to add certificate.\n");
-                }
-            }
-        }
-    }
 
     for(;;) {
         switch(iasp_session_handle_any()) {
@@ -689,7 +697,6 @@ static void event_handler(iasp_session_t * const s, iasp_event_t e)
             debug_newline();
             debug_print_session(s);
             debug_newline();
-            iasp_session_send_userdata(s, (const uint8_t *)"hello", 5);
             break;
 
         case IASP_EVENT_TERMINATED:
