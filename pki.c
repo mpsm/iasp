@@ -44,6 +44,7 @@ bool pki_crl(const char *path)
 {
     BIO *in = NULL;
     X509_CRL *crl;
+    X509_VERIFY_PARAM *param;
 
     assert(path != NULL);
 
@@ -58,6 +59,12 @@ bool pki_crl(const char *path)
     }
 
     X509_STORE_add_crl(cert_ctx, crl);
+
+    /* set CRL check param */
+    param = X509_VERIFY_PARAM_new();
+    X509_VERIFY_PARAM_set_flags(param, X509_V_FLAG_CRL_CHECK);
+    X509_STORE_set1_param(cert_ctx, param);
+
     BIO_free(in);
 
     return true;
@@ -148,6 +155,10 @@ bool pki_load_cert(const char *filepath)
     }
     sctx = X509_STORE_CTX_new();
     X509_STORE_CTX_init(sctx, cert_ctx, new->x509, NULL);
+
+
+
+    /* verify certificate */
     if(!X509_verify_cert(sctx)) {
         debug_log("PKI: Cannot validate certificate.\n");
         return false;
