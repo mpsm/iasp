@@ -1589,6 +1589,9 @@ static bool iasp_handler_mgmt_req(iasp_session_t * const s, streambuf_t * const 
     memcpy(&child->sides[SESSION_SIDE_RESPONDER].id, security_id_by_spn(spn, &tpdr->ids), sizeof(iasp_identity_t));
     crypto_gen_salt(&child->salt);
 
+    /* respond to initiator */
+    iasp_send_status(s, IASP_STATUS_OK);
+
     /* prepare install session message */
     iasp_reset_message();
     iasp_proto_reset_payload();
