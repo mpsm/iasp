@@ -527,7 +527,7 @@ static int main_cd(const modecontext_t *ctx)
     iasp_address_t tpaddr = {NULL};
     int ret = ERROR_RUNTIME;
     iasp_identity_t tpid;
-    iasp_session_t *tpses, *peerses;
+    iasp_session_t *tpses, *peerses = NULL;
 
     printf("\nExecuting CD mode.\n\n");
 
