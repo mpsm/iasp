@@ -1,7 +1,7 @@
 #ifndef __NETWORK_POSIX_H__
 #define __NETWORK_POSIX_H__
 
-#include "libiasp/types.h"
+#include "types.h"
 
 #include <stdbool.h>
 #include <stdint.h>

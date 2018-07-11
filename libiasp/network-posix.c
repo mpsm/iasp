@@ -1,7 +1,9 @@
-#include "libiasp/network.h"
-#include "libiasp/types.h"
-#include "libiasp/binbuf.h"
-#include "libiasp/address.h"
+#include "network-posix.h"
+
+#include "network.h"
+#include "types.h"
+#include "binbuf.h"
+#include "address.h"
 
 #include <sys/time.h>
 #include <sys/types.h>

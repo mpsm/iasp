@@ -1,7 +1,12 @@
-libiasp/libiasp.so
-libiasp/libiasp.a
-.settings
+/libiasp.so
+/libiasp.a
 /unittest
 /iaspdemo
+/iaspdemo-static
+/.settings
+/.project
+/.cproject
+/.vscode
 *.o
+*.lo
 *.pem

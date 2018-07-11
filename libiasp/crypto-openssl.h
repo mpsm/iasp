@@ -1,8 +1,8 @@
 #ifndef __CRYPTO_OPENSSL_H__
 #define __CRYPTO_OPENSSL_H__
 
-#include "libiasp/types.h"
-#include "libiasp/binbuf.h"
+#include "types.h"
+#include "binbuf.h"
 
 #include <openssl/evp.h>
 #include <stdbool.h>
