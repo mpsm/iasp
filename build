@@ -1,0 +1,40 @@
+#!/bin/sh
+
+usage()
+{
+	echo "Usage: $0 [-h] [-c]"
+	echo " Options:"
+	echo "  -h -- print this help"
+	echo "  -c -- build in a container"
+}
+
+build_docker()
+{
+	DOCKERIMG=iasp-devel
+	DOCKERIMGID=$(docker images -q ${DOCKERIMG}:latest)
+	if [ -z "${DOCKERIMGID}" ]; then
+		docker build -t ${DOCKERIMG} -f devel.Dockerfile .
+	fi
+	docker run --rm \
+		--user=$(id -u):$(id -g) \
+		--name iasp-devel-builder \
+		--mount type=bind,source=$(pwd),target=/target \
+		${DOCKERIMG} \
+		make -r -R -C /target IASP_DEBUG=1 OPENSSL_PATH=/build/openssl LIBIASP_PATH=/target distclean iaspdemo-static
+}
+
+while getopts "hc" arg; do
+	case $arg in
+		h)
+			usage
+			exit 0
+		;;
+
+		c)
+			build_docker
+			exit 0
+		;;
+	esac
+done
+
+make -r -R IASP_DEBUG=1 LIBIASP_PATH=. distclean iaspdemo-static

@@ -1,6 +1,6 @@
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))
 
-# library sources and objects
+# library sources, headers and objects
 LIBSRCS= $(addprefix libiasp/,\
 	streambuf.c \
 	encode.c \
@@ -15,7 +15,28 @@ LIBSRCS= $(addprefix libiasp/,\
 	peer.c \
 	crypto-openssl.c \
 	network-posix.c)
-LIBINCS= iasp_field.h
+LIBINCS= $(addprefix libiasp/,\
+	address.h \
+	binbuf.h \
+	config.h \
+	crypto.h \
+	crypto-openssl.h \
+	debug.h \
+	decode.h \
+	encode.h \
+	ffd.h \
+	field.h \
+	iasp.h \
+	message.h \
+	network.h \
+	network-posix.h \
+	peer.h \
+	proto.h \
+	security.h \
+	spn.h \
+	streambuf.h \
+	tp.h \
+	types.h)
 LIBOBJS= $(patsubst %.c,%.o,$(LIBSRCS))
 LIBLOBJS= $(patsubst %.c,%.lo,$(LIBSRCS))
 LIBNAME= libiasp
@@ -29,6 +50,7 @@ APPNAME= iaspdemo
 
 # determine install location
 PREFIX?= /usr
+BINDIR= $(PREFIX)/bin
 LIBDIR= $(PREFIX)/lib
 INCDIR= $(PREFIX)/include
 
@@ -82,16 +104,26 @@ $(LIBNAME).so: $(LIBLOBJS)
 %.lo: %.c
 	$(CC) -c -fPIC $(CFLAGS) $< -o $@
 
+install-app: $(APPNAME)
+	install -m 755 --strip $< $(BINDIR)/$<
+
 install-lib: $(LIBNAME).so
 	install -m 755 --strip $< $(LIBDIR)/$<
 
-install-dev: $(LIBNAME).a iasp.h
-	install -m 644 $(LIBNAME).a $(LIBDIR)
-	install -m 755 -d $(INCDIR)/iasp
-	install -m 644 iasp.h $(INCDIR)/iasp/iasp.h
+install-incs: $(LIBINCS)
+	install -m 755 -d $(INCDIR)/libiasp
+	install -m 644 $^ $(INCDIR)/libiasp
+
+install-dev: $(LIBNAME).a install-incs
+	install -m 644 $< $(LIBDIR)
+
+distclean: clean
+	rm -f $(APPNAME) $(APPNAME)-static
+	rm -f $(LIBNAME).a $(LIBNAME).so
 
 clean:
-	rm -f $(LIBOBJS) $(LIBLOBJS) $(LIBNAME).a $(LIBNAME).so
-	rm -f $(APPNAME) $(APPNAME)-static $(APPOBJS)
+	rm -f $(LIBOBJS) $(LIBLOBJS)
+	rm -f $(APPOBJS)
+
 	
 .PHONY: clean all
