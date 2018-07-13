@@ -9,5 +9,5 @@ branches:
                 - devel-travis
                 - master
 
-install:
-        - ./build -c
+build:
+        - docker build .
